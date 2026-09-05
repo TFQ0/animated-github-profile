@@ -46,7 +46,7 @@ Custom Canvas is constrained despite its name. Do not add arbitrary raw CSS, SVG
 
 `npm run build` creates the static site in `dist/`. The build uses relative asset paths and can be hosted at a domain root or a project subpath.
 
-The `.openai/hosting.json` file connects this repository to its Sites project. Publishing the Studio site and publishing a generated GitHub profile are separate operations.
+The `.github/workflows/deploy-pages.yml` workflow verifies and publishes `dist/` to GitHub Pages after each push to `main`. It supplies the repository-specific Pages base path while local builds keep relative asset paths. In the GitHub repository, select **Settings → Pages → GitHub Actions** once to enable it. Publishing the Studio site and publishing a generated GitHub profile are separate operations.
 
 ## Publish a generated GitHub profile
 

@@ -4,6 +4,10 @@ A browser-based editor for creating a personal GitHub profile README from one re
 
 The built-in TFQ0 design remains the canonical example, but users no longer need to edit eight SVG files by hand.
 
+After GitHub Pages is enabled, the hosted Studio is available at:
+
+**[Open the hosted Studio](https://tfq0.github.io/animated-github-profile/)**
+
 ## Templates, layout, and media customization
 
 Configuration v3 provides seven templates: Quality Control, Classic Terminal, Retro Arcade, Anime HUD, Bento Grid, Signal Poster, and Custom Canvas. The templates use generic, original interface elements and include no franchise characters, logos, or copied artwork.
@@ -49,6 +53,31 @@ The editor does not accept arbitrary raw CSS, SVG markup, SVG paths, or remote f
 
 Keep the exported `profile.config.json`; importing it later restores an editable profile instead of requiring manual SVG changes.
 
+## Deploy the Studio with GitHub Pages
+
+This repository includes [`.github/workflows/deploy-pages.yml`](./.github/workflows/deploy-pages.yml). The workflow runs the type-checker and tests, builds the Vite application with the repository's GitHub Pages base path, and publishes the generated `dist/` directory whenever a commit is pushed to `main`. A failed check stops the deployment.
+
+Complete this one-time setup after pushing the repository to GitHub:
+
+1. Open the repository on GitHub.
+2. Select **Settings**, then **Pages**.
+3. Under **Build and deployment**, choose **GitHub Actions** as the source.
+4. Open the **Actions** tab and run **Deploy to GitHub Pages**, or push another commit to `main`.
+5. Wait for the workflow to finish, then open `https://tfq0.github.io/animated-github-profile/`.
+
+No deployment branch, generated `dist/` commit, server, API key, or repository secret is required. The published Studio is a public static website and stores editable drafts in each visitor's browser.
+
+The `animated-github-profile` repository publishes the Studio itself. It is separate from a generated profile repository named `<username>/<username>`: use **Download complete ZIP** inside the Studio when you want to publish a generated profile.
+
+To publish a later update, verify it locally and push it to `main`. GitHub Actions will replace the hosted version automatically:
+
+```bash
+npm run typecheck
+npm test
+npm run build
+git push origin main
+```
+
 ## Local development
 
 Requirements: Node.js `^22.13.0` or `>=24.0.0` and npm.
@@ -66,7 +95,7 @@ npm test
 npm run build
 ```
 
-The production site is written to `dist/`. Vite uses relative asset URLs, so the build works at a root domain or a GitHub Pages project subpath.
+The production site is written to `dist/`. Local builds keep portable relative asset URLs; the Pages workflow supplies the repository path during its production build.
 
 ## Architecture
 
