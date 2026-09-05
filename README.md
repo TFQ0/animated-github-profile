@@ -1,61 +1,82 @@
-<!-- TFQ0 / Quality Control. Upload this README and the assets directory together. -->
-<picture>
-  <source media="(max-width: 600px) and (prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="./assets/tfq-control-center-mobile-dark-static.svg">
-  <source media="(max-width: 600px) and (prefers-reduced-motion: reduce) and (prefers-color-scheme: light)" srcset="./assets/tfq-control-center-mobile-light-static.svg">
-  <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: dark)" srcset="./assets/tfq-control-center-dark-static.svg">
-  <source media="(prefers-reduced-motion: reduce) and (prefers-color-scheme: light)" srcset="./assets/tfq-control-center-light-static.svg">
-  <source media="(max-width: 600px) and (prefers-color-scheme: dark)" srcset="./assets/tfq-control-center-mobile-dark.svg">
-  <source media="(max-width: 600px) and (prefers-color-scheme: light)" srcset="./assets/tfq-control-center-mobile-light.svg">
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/tfq-control-center-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="./assets/tfq-control-center-light.svg">
-  <img alt="Talal Alqahs — Software Test Engineer and Independent Developer. Build it. Break it. Make it better. Animated QA terminal demonstration; not live test results." src="./assets/tfq-control-center-dark.svg" width="100%">
-</picture>
+# Animated GitHub Profile Studio
 
-<p align="center">
-  <a href="#selected-work">Selected work</a> &nbsp; / &nbsp;
-  <a href="#toolbox">Toolbox</a> &nbsp; / &nbsp;
-  <a href="#open-source">Open source</a>
-</p>
+A browser-based editor for creating a personal GitHub profile README from one reusable configuration. Customize the text, animated terminal, featured repositories, skills, links, section order, colors, and motion settings, then export a ready-to-upload ZIP.
 
-## Beyond the green checkmark.
+The built-in TFQ0 design remains the canonical example, but users no longer need to edit eight SVG files by hand.
 
-I'm **Talal**, a Software Test Engineer and independent developer. I work across UI automation, API testing, and backend development—connecting how software is built with how it behaves in the real world.
+## What it includes
 
-I like reproducible bugs, useful automation, readable code, and tools that stay open.
+- Live desktop and mobile preview in dark and light themes.
+- Animated and reduced-motion/static SVG variants.
+- Profile, hero, project, skill, link, palette, section, Markdown, and footer editing.
+- Optional public GitHub repository import with no login or token.
+- Local autosave of the last valid configuration.
+- Versioned `profile.config.json` import/export.
+- Deterministic ZIP generation containing `README.md`, setup guidance, the saved config, and all eight SVG assets.
+- Strict runtime validation, HTTPS-only generated links, contextual XML/Markdown escaping, and self-contained SVG output.
+- WebMCP tools for agents to read or stage the same configuration used by the visible editor.
 
-```text
-inspect  →  reproduce  →  automate  →  improve
+## Use the studio
+
+1. Open the app and choose **Start blank** or customize the TFQ0 example.
+2. Work through Profile, Hero, Projects, Skills, Links, Style, and Sections.
+3. Check the desktop/mobile, dark/light, and animated/static previews.
+4. Resolve validation errors and review any design warnings in Export.
+5. Download the complete ZIP.
+6. Upload its `README.md` and `assets/` directory to the public GitHub repository whose name exactly matches your username.
+
+Keep the exported `profile.config.json`; importing it later restores an editable profile instead of requiring manual SVG changes.
+
+## Local development
+
+Requirements: Node.js `^22.13.0` or `>=24.0.0` and npm.
+
+```bash
+npm ci
+npm run dev
 ```
 
-## Selected work
+The local app is served at `http://localhost:4173/`.
 
-| Project | What it does | Focus |
-| :--- | :--- | :--- |
-| **[tfq0seo](https://github.com/TFQ0/tfq0seo)** | A command-line SEO analyzer with site crawling and report generation. | Python · CLI tooling |
-| **[tfq0tool](https://github.com/TFQ0/tfq0tool)** | Extracts text from documents, data files, and source code. | Python · Automation |
-| **[ksaa-api-tool](https://github.com/TFQ0/ksaa-api-tool)** | A browser-based interface for exploring Falak API endpoints. | API testing · Developer tooling |
+```bash
+npm run typecheck
+npm test
+npm run build
+```
 
-<!-- Add other projects when their public repositories are ready to share. -->
+The production site is written to `dist/`. Vite uses relative asset URLs, so the build works at a root domain or a GitHub Pages project subpath.
 
-## Toolbox
+## Architecture
 
-**Testing**  
-`Playwright` `Cypress` `Bruno` `Postman` `JMeter`
+```text
+src/
+├── domain/profile.ts       # strict v1 config, template metadata, presets
+├── generator/
+│   ├── svg.ts              # pure eight-variant SVG renderer
+│   ├── readme.ts           # GitHub README renderer
+│   ├── escape.ts           # XML/Markdown/URL safety boundaries
+│   └── artifacts.ts        # deterministic file and ZIP assembly
+├── services/github.ts      # optional public repository import
+├── components/             # editor fields and GitHub-like preview
+├── webmcp.ts               # agent-facing read/stage actions
+└── App.tsx                 # editor state and workflows
+```
 
-**Development**  
-`Python` `TypeScript` `JavaScript` `FastAPI` `PostgreSQL`
+`ProfileConfig` is the single source of truth. The visible preview, README source, SVG files, saved config, and ZIP are all produced from the same validated object. Imported GitHub data becomes an editable snapshot; it is never a hidden dependency of later exports.
 
-**Environment & delivery**  
-`Git` `GitHub Actions` `Docker` `Linux`
+## Privacy and output safety
 
-## Open source
+- The editor has no backend and requests no GitHub token.
+- Drafts and the short-lived public repository cache stay in browser storage.
+- Only public repository metadata is fetched directly from GitHub's public API.
+- Generated SVGs contain no scripts, event handlers, remote fonts, external images, tracking, or live CI claims.
+- Static fallbacks are generated for visitors who prefer reduced motion.
+- Custom Markdown blocks raw HTML and neutralizes non-HTTPS link destinations in generated output.
 
-I enjoy understanding a project before changing it: reproduce the problem, trace the cause, make a focused change, and verify the result.
+## Legacy reference
 
-[Pull requests](https://github.com/pulls?q=is%3Apr+author%3ATFQ0) &nbsp; / &nbsp; [Issues](https://github.com/issues?q=is%3Aissue+author%3ATFQ0) &nbsp; / &nbsp; [Repositories](https://github.com/TFQ0?tab=repositories)
+The original hand-authored TFQ0 SVGs, screenshots, GIF, and `preview.html` remain in `assets/` and `preview/` as visual references. They are not used by the Studio build. New custom profiles should be generated through the editor so all responsive, theme, and reduced-motion variants stay synchronized.
 
----
+## License
 
-<p align="center">
-  <sub><b>No monopoly. Yes to open source.</b><br>Build it. Break it. Test it. Improve it.</sub>
-</p>
+No license has been selected yet. Choose and add an appropriate license before inviting third parties to copy, modify, or redistribute the source.

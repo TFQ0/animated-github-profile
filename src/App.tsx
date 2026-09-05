@@ -1,0 +1,848 @@
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react";
+import {
+  cloneDefaultConfig,
+  createId,
+  createBlankConfig,
+  defaultProfileConfig,
+  parseProfileConfig,
+  profileConfigSchema,
+  type Palette,
+  type ProfileConfig,
+  type ProfileLink,
+  type Repository,
+  type SectionKey,
+  type SkillGroup,
+} from "./domain/profile";
+import {
+  downloadBlob,
+  downloadText,
+  generateArtifacts,
+  generateZip,
+} from "./generator/artifacts";
+import { renderReadme } from "./generator/readme";
+import type {
+  HeroMotion,
+  HeroTheme,
+  HeroVariant,
+  HeroViewport,
+} from "./generator/svg";
+import {
+  fetchPublicRepositories,
+  parseCachedRepositories,
+  type ImportedRepository,
+} from "./services/github";
+import {
+  ColorField,
+  CommaListField,
+  EditorCard,
+  ItemActions,
+  TextArea,
+  TextField,
+} from "./components/Fields";
+import { ProfilePreview } from "./components/ProfilePreview";
+import { registerProfileWebMcpTools } from "./webmcp";
+
+type PanelKey =
+  | "profile"
+  | "hero"
+  | "projects"
+  | "skills"
+  | "links"
+  | "style"
+  | "sections"
+  | "export";
+
+type Notice = { tone: "success" | "error" | "info"; message: string } | null;
+
+const storageKey = "animated-profile-studio:config:v1";
+const githubCachePrefix = "animated-profile-studio:github:";
+const allSections: SectionKey[] = [
+  "about",
+  "repositories",
+  "skills",
+  "links",
+  "custom",
+];
+
+const panels: Array<{ key: PanelKey; label: string; short: string }> = [
+  { key: "profile", label: "Profile", short: "01" },
+  { key: "hero", label: "Hero", short: "02" },
+  { key: "projects", label: "Projects", short: "03" },
+  { key: "skills", label: "Skills", short: "04" },
+  { key: "links", label: "Links", short: "05" },
+  { key: "style", label: "Style", short: "06" },
+  { key: "sections", label: "Sections", short: "07" },
+  { key: "export", label: "Export", short: "08" },
+];
+
+function moveItem<T>(items: T[], index: number, direction: -1 | 1): T[] {
+  const target = index + direction;
+  if (target < 0 || target >= items.length) return items;
+  const next = [...items];
+  const currentItem = next[index]!;
+  next[index] = next[target]!;
+  next[target] = currentItem;
+  return next;
+}
+
+function loadInitialConfig(): ProfileConfig {
+  try {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) return parseProfileConfig(JSON.parse(saved));
+  } catch {
+    // A malformed browser draft should never prevent the editor from opening.
+  }
+  return cloneDefaultConfig();
+}
+
+function hexToRgb(hex: string): [number, number, number] | null {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return null;
+  return [
+    Number.parseInt(hex.slice(1, 3), 16),
+    Number.parseInt(hex.slice(3, 5), 16),
+    Number.parseInt(hex.slice(5, 7), 16),
+  ];
+}
+
+function relativeLuminance(hex: string): number | null {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return null;
+  const channels = rgb.map((value) => {
+    const channel = value / 255;
+    return channel <= 0.03928
+      ? channel / 12.92
+      : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0]! + 0.7152 * channels[1]! + 0.0722 * channels[2]!;
+}
+
+function contrastRatio(first: string, second: string): number | null {
+  const firstLuminance = relativeLuminance(first);
+  const secondLuminance = relativeLuminance(second);
+  if (firstLuminance === null || secondLuminance === null) return null;
+  const lighter = Math.max(firstLuminance, secondLuminance);
+  const darker = Math.min(firstLuminance, secondLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function getWarnings(config: ProfileConfig): string[] {
+  const warnings: string[] = [];
+  if (config.hero.headline.some((line) => line.length > 18)) {
+    warnings.push("A headline line may be tight on the mobile header.");
+  }
+  if (config.hero.command.length > 24) {
+    warnings.push("The terminal command may be clipped on smaller layouts.");
+  }
+  if (config.hero.checks.some((check) => check.length > 18)) {
+    warnings.push("A check label may overlap its status on mobile.");
+  }
+  if (config.identity.secondaryRole.length > 40) {
+    warnings.push("The secondary role may be tight on mobile.");
+  }
+  if (config.identity.brandMark.length > 7 || config.identity.headerLabel.length > 20) {
+    warnings.push("The header mark and label may compete for space.");
+  }
+  if (config.identity.profileLabel.length > 14) {
+    warnings.push("The profile badge may be tight in the mobile header.");
+  }
+  if (config.identity.eyebrow.length > 24) {
+    warnings.push("The eyebrow name may be tight on mobile.");
+  }
+  if (config.hero.footerLeft.length > 24 || config.hero.footerRight.length > 34) {
+    warnings.push("A hero footer label may be clipped on mobile.");
+  }
+  for (const theme of ["dark", "light"] as const) {
+    const palette = config.appearance[theme];
+    const foregrounds = [
+      ["text", palette.text],
+      ["muted", palette.muted],
+      ["accent", palette.accent],
+    ] as const;
+    const backgrounds = [
+      ["background", palette.background],
+      ["surface", palette.surface],
+      ["terminal", palette.terminal],
+    ] as const;
+    const failures: string[] = [];
+    for (const [foregroundName, foreground] of foregrounds) {
+      for (const [backgroundName, background] of backgrounds) {
+        const ratio = contrastRatio(foreground, background);
+        if (ratio !== null && ratio < 4.5) {
+          failures.push(`${foregroundName}/${backgroundName} ${ratio.toFixed(1)}:1`);
+        }
+      }
+    }
+    const accentSoftRatio = contrastRatio(palette.accent, palette.accentSoft);
+    if (accentSoftRatio !== null && accentSoftRatio < 4.5) {
+      failures.push(`accent/accent soft ${accentSoftRatio.toFixed(1)}:1`);
+    }
+    if (failures.length) {
+      warnings.push(
+        `${theme === "dark" ? "Dark" : "Light"} palette has low contrast: ${failures.slice(0, 3).join(", ")}${failures.length > 3 ? ` (+${failures.length - 3} more)` : ""}.`,
+      );
+    }
+  }
+  return warnings;
+}
+
+function sanitizedDownloadName(username: string): string {
+  const clean = username.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-");
+  return `${clean || "github"}-profile`;
+}
+
+export default function App() {
+  const [config, setConfig] = useState<ProfileConfig>(loadInitialConfig);
+  const [activePanel, setActivePanel] = useState<PanelKey>("profile");
+  const [theme, setTheme] = useState<HeroTheme>("dark");
+  const [viewport, setViewport] = useState<HeroViewport>("desktop");
+  const [motion, setMotion] = useState<HeroMotion>(() =>
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "static" : "animated",
+  );
+  const [paused, setPaused] = useState(false);
+  const [replayKey, setReplayKey] = useState(0);
+  const [notice, setNotice] = useState<Notice>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [repoQuery, setRepoQuery] = useState(config.identity.username);
+  const [repoSearch, setRepoSearch] = useState("");
+  const [importedRepositories, setImportedRepositories] = useState<ImportedRepository[]>([]);
+  const [isImportingRepositories, setIsImportingRepositories] = useState(false);
+  const [repositoryError, setRepositoryError] = useState("");
+  const [showForks, setShowForks] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const configFileInput = useRef<HTMLInputElement>(null);
+  const importAbortController = useRef<AbortController | null>(null);
+  const configSnapshot = useRef(config);
+  configSnapshot.current = config;
+
+  const validation = useMemo(() => profileConfigSchema.safeParse(config), [config]);
+  const warnings = useMemo(() => getWarnings(config), [config]);
+  const readme = useMemo(() => {
+    if (!validation.success) return "";
+    return renderReadme(validation.data);
+  }, [validation]);
+  const artifacts = useMemo(
+    () => (validation.success ? generateArtifacts(validation.data) : []),
+    [validation],
+  );
+  const orderedSectionOptions = useMemo(
+    () => [
+      ...config.sections,
+      ...allSections.filter((section) => !config.sections.includes(section)),
+    ],
+    [config.sections],
+  );
+  const variant: HeroVariant = { theme, viewport, motion };
+
+  useEffect(() => {
+    if (!validation.success) return;
+    const timeout = window.setTimeout(() => {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(validation.data));
+      } catch {
+        setNotice({
+          tone: "info",
+          message: "Your browser could not save this draft locally. Export the config to keep it.",
+        });
+      }
+    }, 250);
+    return () => window.clearTimeout(timeout);
+  }, [validation]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(null), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
+
+  useEffect(
+    () =>
+      registerProfileWebMcpTools({
+        readDraft: () => {
+          const current = configSnapshot.current;
+          const result = profileConfigSchema.safeParse(current);
+          return {
+            config: current,
+            valid: result.success,
+            issues: result.success
+              ? []
+              : result.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`),
+            generatedFiles: result.success
+              ? generateArtifacts(result.data).map((artifact) => artifact.path)
+              : [],
+          };
+        },
+        stageConfig: (nextConfig) => {
+          configSnapshot.current = nextConfig;
+          setConfig(nextConfig);
+          setRepoQuery(nextConfig.identity.username);
+          setActivePanel("profile");
+          setNotice({ tone: "success", message: "An agent staged a valid profile configuration." });
+        },
+        onRegistrationError: (error) => {
+          console.warn("Profile Studio agent tools could not be registered.", error);
+        },
+      }),
+    [],
+  );
+
+  function updateIdentity<K extends keyof ProfileConfig["identity"]>(
+    key: K,
+    value: ProfileConfig["identity"][K],
+  ) {
+    setConfig((current) => ({
+      ...current,
+      identity: { ...current.identity, [key]: value },
+    }));
+  }
+
+  function updateHero<K extends keyof ProfileConfig["hero"]>(
+    key: K,
+    value: ProfileConfig["hero"][K],
+  ) {
+    setConfig((current) => ({
+      ...current,
+      hero: { ...current.hero, [key]: value },
+    }));
+  }
+
+  function updateRepository(index: number, patch: Partial<Repository>) {
+    setConfig((current) => ({
+      ...current,
+      repositories: current.repositories.map((repository, itemIndex) =>
+        itemIndex === index ? { ...repository, ...patch } : repository,
+      ),
+    }));
+  }
+
+  function updateSkillGroup(index: number, patch: Partial<SkillGroup>) {
+    setConfig((current) => ({
+      ...current,
+      skillGroups: current.skillGroups.map((group, itemIndex) =>
+        itemIndex === index ? { ...group, ...patch } : group,
+      ),
+    }));
+  }
+
+  function updateLink(index: number, patch: Partial<ProfileLink>) {
+    setConfig((current) => ({
+      ...current,
+      links: current.links.map((link, itemIndex) =>
+        itemIndex === index ? { ...link, ...patch } : link,
+      ),
+    }));
+  }
+
+  function updatePalette(themeKey: HeroTheme, key: keyof Palette, value: string) {
+    setConfig((current) => ({
+      ...current,
+      appearance: {
+        ...current.appearance,
+        [themeKey]: { ...current.appearance[themeKey], [key]: value },
+      },
+    }));
+  }
+
+  function firstValidationMessage(): string {
+    if (validation.success) return "";
+    const issue = validation.error.issues[0];
+    return issue ? `${issue.path.join(".")}: ${issue.message}` : "Fix the highlighted profile settings.";
+  }
+
+  async function copyReadme() {
+    if (!validation.success) {
+      setNotice({ tone: "error", message: firstValidationMessage() });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(readme);
+      setNotice({ tone: "success", message: "README copied to your clipboard." });
+    } catch {
+      setNotice({ tone: "error", message: "The README could not be copied. Use the Export panel instead." });
+    }
+  }
+
+  async function downloadBundle() {
+    if (!validation.success) {
+      setNotice({ tone: "error", message: firstValidationMessage() });
+      setActivePanel("export");
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const blob = await generateZip(validation.data);
+      downloadBlob(blob, `${sanitizedDownloadName(config.identity.username)}.zip`);
+      setNotice({ tone: "success", message: "Your complete profile bundle is ready." });
+    } catch {
+      setNotice({ tone: "error", message: "The profile bundle could not be created." });
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  function downloadConfig() {
+    if (!validation.success) {
+      setNotice({ tone: "error", message: firstValidationMessage() });
+      return;
+    }
+    downloadText(
+      `${JSON.stringify(validation.data, null, 2)}\n`,
+      `${sanitizedDownloadName(config.identity.username)}.config.json`,
+      "application/json",
+    );
+    setNotice({ tone: "success", message: "Configuration downloaded." });
+  }
+
+  async function importConfig(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (file.size > 100_000) {
+      setNotice({ tone: "error", message: "That configuration file is too large." });
+      return;
+    }
+    try {
+      const imported = parseProfileConfig(JSON.parse(await file.text()));
+      setConfig(imported);
+      setRepoQuery(imported.identity.username);
+      setNotice({ tone: "success", message: "Configuration loaded." });
+    } catch {
+      setNotice({ tone: "error", message: "This is not a valid Profile Studio configuration." });
+    }
+  }
+
+  function resetProfile() {
+    if (!window.confirm("Reset every field to the TFQ0 example?")) return;
+    setConfig(cloneDefaultConfig());
+    setRepoQuery(defaultProfileConfig.identity.username);
+    setImportedRepositories([]);
+    setNotice({ tone: "info", message: "The TFQ0 example has been restored." });
+  }
+
+  function startBlankProfile() {
+    if (!window.confirm("Replace the current draft with a clean starter profile?")) return;
+    const blank = createBlankConfig();
+    setConfig(blank);
+    setRepoQuery(blank.identity.username);
+    setImportedRepositories([]);
+    setNotice({ tone: "info", message: "A clean starter profile is ready." });
+  }
+
+  async function importRepositories() {
+    const username = repoQuery.trim();
+    if (!username) {
+      setRepositoryError("Enter a GitHub username first.");
+      return;
+    }
+    setIsImportingRepositories(true);
+    setRepositoryError("");
+    importAbortController.current?.abort();
+    const controller = new AbortController();
+    importAbortController.current = controller;
+    try {
+      const cacheKey = `${githubCachePrefix}${username.toLowerCase()}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached) as { savedAt?: unknown; items?: unknown };
+          if (
+            typeof parsed.savedAt === "number" &&
+            Date.now() - parsed.savedAt < 15 * 60 * 1000
+          ) {
+            setImportedRepositories(parseCachedRepositories(parsed.items));
+            return;
+          }
+        } catch {
+          localStorage.removeItem(cacheKey);
+        }
+      }
+      const repositories = await fetchPublicRepositories(username, controller.signal);
+      setImportedRepositories(repositories);
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify({ savedAt: Date.now(), items: repositories }));
+      } catch {
+        // Cache failure does not affect importing.
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setRepositoryError(error instanceof Error ? error.message : "Repositories could not be loaded.");
+    } finally {
+      if (importAbortController.current === controller) setIsImportingRepositories(false);
+    }
+  }
+
+  function addImportedRepository(repository: ImportedRepository) {
+    if (config.repositories.some((item) => item.id === repository.id)) return;
+    if (config.repositories.length >= 6) {
+      setNotice({ tone: "info", message: "The first release supports up to six featured projects." });
+      return;
+    }
+    setConfig((current) => ({
+      ...current,
+      repositories: [
+        ...current.repositories,
+        {
+          id: repository.id.slice(0, 160),
+          name: repository.name.slice(0, 100),
+          url: repository.url,
+          description: repository.description.slice(0, 180),
+          focus: repository.focus.slice(0, 80),
+          source: { provider: "github", fullName: repository.id.slice(0, 140) },
+        },
+      ],
+    }));
+  }
+
+  function addManualRepository() {
+    if (config.repositories.length >= 6) return;
+    setConfig((current) => ({
+      ...current,
+      repositories: [
+        ...current.repositories,
+        {
+          id: createId("repository"),
+          name: "new-project",
+          url: `https://github.com/${current.identity.username}/new-project`,
+          description: "What this project does.",
+          focus: "Technology · Focus",
+        },
+      ],
+    }));
+  }
+
+  function toggleSection(section: SectionKey) {
+    setConfig((current) => {
+      const enabled = current.sections.includes(section);
+      if (enabled && current.sections.length === 1) return current;
+      return {
+        ...current,
+        sections: enabled
+          ? current.sections.filter((item) => item !== section)
+          : [...current.sections, section],
+      };
+    });
+  }
+
+  const visibleImportedRepositories = importedRepositories
+    .filter((repository) => showForks || !repository.fork)
+    .filter((repository) => showArchived || !repository.archived)
+    .filter((repository) =>
+      `${repository.name} ${repository.description}`.toLowerCase().includes(repoSearch.toLowerCase()),
+    )
+    .slice(0, 50);
+
+  return (
+    <div className="app-shell">
+      <header className="app-header">
+        <div className="brand-lockup">
+          <span className="brand-mark" aria-hidden="true">›_</span>
+          <span>
+            <strong>Profile Studio</strong>
+            <small>Animated GitHub profiles</small>
+          </span>
+        </div>
+        <div className="header-status" aria-live="polite">
+          <span className={`status-dot ${validation.success ? "status-good" : "status-error"}`} />
+          {validation.success ? "Valid · auto-saves locally" : "Needs attention · last valid draft kept"}
+        </div>
+        <div className="header-actions">
+          <input
+            ref={configFileInput}
+            className="visually-hidden"
+            type="file"
+            accept="application/json,.json"
+            onChange={importConfig}
+          />
+          <button className="button button-ghost" type="button" onClick={() => configFileInput.current?.click()}>
+            Import config
+          </button>
+          <button className="button button-ghost" type="button" onClick={copyReadme}>
+            Copy README
+          </button>
+          <button className="button button-primary" type="button" onClick={downloadBundle} disabled={isExporting}>
+            {isExporting ? "Building…" : "Download ZIP"}
+          </button>
+        </div>
+      </header>
+
+      <main className="studio-workspace">
+        <aside className="editor-pane" aria-label="Profile settings">
+          <div className="editor-intro">
+            <div>
+              <span className="workspace-eyebrow">CONFIG / V1</span>
+              <h1>Make it yours.</h1>
+            </div>
+            <div className="intro-actions"><button className="text-button" type="button" onClick={startBlankProfile}>Start blank</button><button className="text-button" type="button" onClick={resetProfile}>Restore example</button></div>
+          </div>
+          <nav className="panel-tabs" aria-label="Editor sections">
+            {panels.map((panel) => (
+              <button
+                key={panel.key}
+                type="button"
+                className={activePanel === panel.key ? "panel-tab panel-tab-active" : "panel-tab"}
+                onClick={() => setActivePanel(panel.key)}
+                aria-current={activePanel === panel.key ? "page" : undefined}
+              >
+                <span>{panel.short}</span>
+                {panel.label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="editor-scroll">
+            {activePanel === "profile" ? (
+              <>
+                <EditorCard title="Identity" eyebrow="Public profile">
+                  <div className="field-grid">
+                    <TextField label="GitHub username" value={config.identity.username} maxLength={39} onChange={(value) => updateIdentity("username", value)} />
+                    <TextField label="Display name" value={config.identity.displayName} maxLength={36} onChange={(value) => updateIdentity("displayName", value)} />
+                    <TextField label="Header mark" value={config.identity.brandMark} maxLength={12} onChange={(value) => updateIdentity("brandMark", value)} />
+                    <TextField label="Header label" value={config.identity.headerLabel} maxLength={28} onChange={(value) => updateIdentity("headerLabel", value)} />
+                  </div>
+                  <TextField label="Eyebrow name" value={config.identity.eyebrow} maxLength={32} onChange={(value) => updateIdentity("eyebrow", value)} />
+                  <TextField label="Primary role" value={config.identity.primaryRole} maxLength={44} onChange={(value) => updateIdentity("primaryRole", value)} />
+                  <TextField label="Secondary role" value={config.identity.secondaryRole} maxLength={54} onChange={(value) => updateIdentity("secondaryRole", value)} />
+                </EditorCard>
+                <EditorCard title="About" eyebrow="README section">
+                  <TextField label="Heading" value={config.about.heading} maxLength={70} onChange={(value) => setConfig((current) => ({ ...current, about: { ...current.about, heading: value } }))} />
+                  {config.about.paragraphs.map((paragraph, index) => (
+                    <div className="stacked-item" key={`paragraph-${index}`}>
+                      <TextArea label={`Paragraph ${index + 1}`} value={paragraph} maxLength={600} rows={4} onChange={(value) => setConfig((current) => ({ ...current, about: { ...current.about, paragraphs: current.about.paragraphs.map((item, itemIndex) => itemIndex === index ? value : item) } }))} />
+                      {config.about.paragraphs.length > 1 ? <button className="text-button danger-button" type="button" onClick={() => setConfig((current) => ({ ...current, about: { ...current.about, paragraphs: current.about.paragraphs.filter((_, itemIndex) => itemIndex !== index) } }))}>Remove paragraph</button> : null}
+                    </div>
+                  ))}
+                  {config.about.paragraphs.length < 3 ? <button className="button button-secondary button-full" type="button" onClick={() => setConfig((current) => ({ ...current, about: { ...current.about, paragraphs: [...current.about.paragraphs, "Add another detail about your work."] } }))}>Add paragraph</button> : null}
+                  <TextField label="Process line" value={config.about.processLine} maxLength={120} onChange={(value) => setConfig((current) => ({ ...current, about: { ...current.about, processLine: value } }))} />
+                </EditorCard>
+                <EditorCard title="Accessibility" eyebrow="Language and image description">
+                  <div className="field-grid">
+                    <TextField label="Language tag" value={config.accessibility.language} maxLength={35} placeholder="en or ar-SA" onChange={(value) => setConfig((current) => ({ ...current, accessibility: { ...current.accessibility, language: value } }))} />
+                    <div className="field"><span className="field-label-row"><span>Text direction</span></span><div className="toggle-row">{(["ltr", "rtl", "auto"] as const).map((direction) => <label key={direction}><input type="radio" name="text-direction" checked={config.accessibility.direction === direction} onChange={() => setConfig((current) => ({ ...current, accessibility: { ...current.accessibility, direction } }))} /> {direction.toUpperCase()}</label>)}</div></div>
+                  </div>
+                  <TextArea label="Image alt override" value={config.accessibility.imageAlt} maxLength={240} rows={3} hint="Leave empty to derive a motion-neutral description from your profile." onChange={(value) => setConfig((current) => ({ ...current, accessibility: { ...current.accessibility, imageAlt: value } }))} />
+                  <TextField label="SVG title override" value={config.accessibility.svgTitle} maxLength={120} hint="Leave empty to use your display name and header label." onChange={(value) => setConfig((current) => ({ ...current, accessibility: { ...current.accessibility, svgTitle: value } }))} />
+                  <TextArea label="Animated SVG description" value={config.accessibility.animatedDescription} maxLength={300} rows={3} hint="Optional. The not-live disclosure is always added." onChange={(value) => setConfig((current) => ({ ...current, accessibility: { ...current.accessibility, animatedDescription: value } }))} />
+                  <TextArea label="Static SVG description" value={config.accessibility.staticDescription} maxLength={300} rows={3} hint="Optional. The not-live disclosure is always added." onChange={(value) => setConfig((current) => ({ ...current, accessibility: { ...current.accessibility, staticDescription: value } }))} />
+                </EditorCard>
+              </>
+            ) : null}
+
+            {activePanel === "hero" ? (
+              <>
+                <EditorCard title="Headline" eyebrow="Three-line statement">
+                  {config.hero.headline.map((line, index) => (
+                    <TextField key={`headline-${index}`} label={`Line ${index + 1}`} value={line} maxLength={24} onChange={(value) => updateHero("headline", config.hero.headline.map((item, itemIndex) => itemIndex === index ? value : item) as ProfileConfig["hero"]["headline"])} />
+                  ))}
+                  <TextField label="Profile badge" value={config.identity.profileLabel} maxLength={20} onChange={(value) => updateIdentity("profileLabel", value)} />
+                </EditorCard>
+                <EditorCard title="Terminal" eyebrow="Animated demonstration">
+                  <TextField label="Command" value={config.hero.command} maxLength={30} onChange={(value) => updateHero("command", value)} />
+                  <div className="list-heading"><strong>Checks</strong><span>{config.hero.checks.length}/4</span></div>
+                  {config.hero.checks.map((check, index) => (
+                    <div className="compact-list-item" key={`check-${index}`}>
+                      <TextField label={`Check ${index + 1}`} value={check} maxLength={24} onChange={(value) => updateHero("checks", config.hero.checks.map((item, itemIndex) => itemIndex === index ? value : item))} />
+                      <ItemActions index={index} length={config.hero.checks.length} onMove={(direction) => updateHero("checks", moveItem(config.hero.checks, index, direction))} onRemove={() => config.hero.checks.length > 1 && updateHero("checks", config.hero.checks.filter((_, itemIndex) => itemIndex !== index))} />
+                    </div>
+                  ))}
+                  {config.hero.checks.length < 4 ? <button className="button button-secondary button-full" type="button" onClick={() => updateHero("checks", [...config.hero.checks, "New check"])}>Add check</button> : null}
+                  <TextField label="Completion message" value={config.hero.completionMessage} maxLength={44} onChange={(value) => updateHero("completionMessage", value)} />
+                  <TextField label="Idle message" value={config.hero.idleMessage} maxLength={44} onChange={(value) => updateHero("idleMessage", value)} />
+                  <div className="field-grid">
+                    <TextField label="Terminal host" value={config.hero.labels.host} maxLength={16} onChange={(value) => updateHero("labels", { ...config.hero.labels, host: value })} />
+                    <TextField label="Run label" value={config.hero.labels.demoRun} maxLength={12} onChange={(value) => updateHero("labels", { ...config.hero.labels, demoRun: value })} />
+                    <TextField label="Queued label" value={config.hero.labels.queued} maxLength={8} onChange={(value) => updateHero("labels", { ...config.hero.labels, queued: value })} />
+                    <TextField label="Running label" value={config.hero.labels.running} maxLength={8} onChange={(value) => updateHero("labels", { ...config.hero.labels, running: value })} />
+                    <TextField label="Passed label" value={config.hero.labels.passed} maxLength={6} onChange={(value) => updateHero("labels", { ...config.hero.labels, passed: value })} />
+                    <TextField label="Workflow label" value={config.hero.labels.workflow} maxLength={18} onChange={(value) => updateHero("labels", { ...config.hero.labels, workflow: value })} />
+                  </div>
+                </EditorCard>
+                <EditorCard title="Workflow" eyebrow="Bottom sequence">
+                  {config.hero.workflow.map((step, index) => (
+                    <div className="compact-list-item" key={`workflow-${index}`}>
+                      <TextField label={`Step ${index + 1}`} value={step} maxLength={12} onChange={(value) => updateHero("workflow", config.hero.workflow.map((item, itemIndex) => itemIndex === index ? value : item))} />
+                      <ItemActions index={index} length={config.hero.workflow.length} onMove={(direction) => updateHero("workflow", moveItem(config.hero.workflow, index, direction))} onRemove={() => config.hero.workflow.length > 2 && updateHero("workflow", config.hero.workflow.filter((_, itemIndex) => itemIndex !== index))} />
+                    </div>
+                  ))}
+                  {config.hero.workflow.length < 4 ? <button className="button button-secondary button-full" type="button" onClick={() => updateHero("workflow", [...config.hero.workflow, "NEXT"])}>Add step</button> : null}
+                  <label className="field range-field">
+                    <span className="field-label-row"><span>Animation cycle</span><strong>{config.hero.animationDuration}s</strong></span>
+                    <input type="range" min="8" max="30" step="1" value={config.hero.animationDuration} onChange={(event) => updateHero("animationDuration", Number(event.target.value))} />
+                  </label>
+                  <TextField label="Left footer" value={config.hero.footerLeft} maxLength={32} onChange={(value) => updateHero("footerLeft", value)} />
+                  <TextField label="Right footer" value={config.hero.footerRight} maxLength={44} onChange={(value) => updateHero("footerRight", value)} />
+                </EditorCard>
+              </>
+            ) : null}
+
+            {activePanel === "projects" ? (
+              <>
+                <EditorCard title="Import from GitHub" eyebrow="Public repositories">
+                  <div className="inline-form">
+                    <TextField label="GitHub username" value={repoQuery} maxLength={39} onChange={setRepoQuery} />
+                    <button className="button button-primary inline-form-button" type="button" onClick={importRepositories} disabled={isImportingRepositories}>{isImportingRepositories ? "Loading…" : "Load"}</button>
+                  </div>
+                  <p className="privacy-note"><span aria-hidden="true">●</span> Loads up to 300 recent public repositories. No login or token is requested.</p>
+                  {repositoryError ? <p className="inline-error" role="alert">{repositoryError}</p> : null}
+                  {importedRepositories.length > 0 ? (
+                    <>
+                      <TextField label="Search loaded repositories" value={repoSearch} onChange={setRepoSearch} placeholder="Search by name or description" />
+                      <div className="toggle-row">
+                        <label><input type="checkbox" checked={showForks} onChange={(event) => setShowForks(event.target.checked)} /> Include forks</label>
+                        <label><input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} /> Include archived</label>
+                      </div>
+                      <div className="import-results" aria-label="Loaded GitHub repositories">
+                        {visibleImportedRepositories.map((repository) => {
+                          const selected = config.repositories.some((item) => item.id === repository.id);
+                          return (
+                            <div className="import-result" key={repository.id}>
+                              <div><strong>{repository.name}</strong><span>{repository.focus || "Repository"} · ★ {repository.stars}</span></div>
+                              <button className={selected ? "button button-selected" : "button button-secondary"} type="button" disabled={selected} onClick={() => addImportedRepository(repository)}>{selected ? "Selected" : "Add"}</button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : null}
+                </EditorCard>
+                <EditorCard title="Featured projects" eyebrow={`${config.repositories.length}/6 selected`} actions={<button className="text-button" type="button" disabled={config.repositories.length >= 6} onClick={addManualRepository}>Add manually</button>}>
+                  {config.repositories.length === 0 ? <div className="empty-state"><strong>No projects selected</strong><span>Import public repositories or add one manually.</span></div> : null}
+                  {config.repositories.map((repository, index) => (
+                    <div className="editable-list-item" key={repository.id}>
+                      <div className="item-index">{String(index + 1).padStart(2, "0")}</div>
+                      <TextField label="Project name" value={repository.name} maxLength={100} onChange={(value) => updateRepository(index, { name: value })} />
+                      <TextField label="HTTPS URL" value={repository.url} type="url" onChange={(value) => updateRepository(index, { url: value })} />
+                      <TextArea label="Description" value={repository.description} maxLength={180} rows={3} onChange={(value) => updateRepository(index, { description: value })} />
+                      <TextField label="Focus / tags" value={repository.focus} maxLength={80} onChange={(value) => updateRepository(index, { focus: value })} />
+                      <ItemActions index={index} length={config.repositories.length} onMove={(direction) => setConfig((current) => ({ ...current, repositories: moveItem(current.repositories, index, direction) }))} onRemove={() => setConfig((current) => ({ ...current, repositories: current.repositories.filter((_, itemIndex) => itemIndex !== index) }))} removeLabel="Remove project" />
+                    </div>
+                  ))}
+                </EditorCard>
+              </>
+            ) : null}
+
+            {activePanel === "skills" ? (
+              <EditorCard title="Skill groups" eyebrow="Organize your toolbox" actions={<button className="text-button" type="button" disabled={config.skillGroups.length >= 6} onClick={() => setConfig((current) => ({ ...current, skillGroups: [...current.skillGroups, { id: createId("skills"), label: "New group", items: ["New skill"] }] }))}>Add group</button>}>
+                {config.skillGroups.map((group, index) => (
+                  <div className="editable-list-item" key={group.id}>
+                    <div className="item-index">{String(index + 1).padStart(2, "0")}</div>
+                    <TextField label="Group name" value={group.label} maxLength={40} onChange={(value) => updateSkillGroup(index, { label: value })} />
+                    <CommaListField label="Skills" items={group.items} onCommit={(items) => updateSkillGroup(index, { items })} />
+                    <ItemActions index={index} length={config.skillGroups.length} onMove={(direction) => setConfig((current) => ({ ...current, skillGroups: moveItem(current.skillGroups, index, direction) }))} onRemove={() => setConfig((current) => ({ ...current, skillGroups: current.skillGroups.filter((_, itemIndex) => itemIndex !== index) }))} removeLabel="Remove group" />
+                  </div>
+                ))}
+              </EditorCard>
+            ) : null}
+
+            {activePanel === "links" ? (
+              <EditorCard title="Profile links" eyebrow="Social and open source" actions={<button className="text-button" type="button" disabled={config.links.length >= 8} onClick={() => setConfig((current) => ({ ...current, links: [...current.links, { id: createId("link"), label: "New link", url: "https://github.com/" }] }))}>Add link</button>}>
+                <TextField label="Section heading" value={config.sectionHeadings.links} maxLength={70} onChange={(value) => setConfig((current) => ({ ...current, sectionHeadings: { ...current.sectionHeadings, links: value } }))} />
+                {config.links.map((link, index) => (
+                  <div className="editable-list-item" key={link.id}>
+                    <div className="item-index">{String(index + 1).padStart(2, "0")}</div>
+                    <TextField label="Label" value={link.label} maxLength={40} onChange={(value) => updateLink(index, { label: value })} />
+                    <TextField label="HTTPS URL" value={link.url} type="url" onChange={(value) => updateLink(index, { url: value })} />
+                    <ItemActions index={index} length={config.links.length} onMove={(direction) => setConfig((current) => ({ ...current, links: moveItem(current.links, index, direction) }))} onRemove={() => setConfig((current) => ({ ...current, links: current.links.filter((_, itemIndex) => itemIndex !== index) }))} removeLabel="Remove link" />
+                  </div>
+                ))}
+              </EditorCard>
+            ) : null}
+
+            {activePanel === "style" ? (
+              <>
+                {(["dark", "light"] as const).map((themeKey) => (
+                  <EditorCard key={themeKey} title={`${themeKey === "dark" ? "Dark" : "Light"} palette`} eyebrow="Six-digit hex colors">
+                    <div className="color-grid">
+                      {(Object.keys(config.appearance[themeKey]) as Array<keyof Palette>).map((key) => (
+                        <ColorField key={key} label={key.replace(/([A-Z])/g, " $1").replace(/^./, (letter) => letter.toUpperCase())} value={config.appearance[themeKey][key]} onChange={(value) => updatePalette(themeKey, key, value)} />
+                      ))}
+                    </div>
+                  </EditorCard>
+                ))}
+                <EditorCard title="Shape" eyebrow="Header frame">
+                  <label className="field range-field"><span className="field-label-row"><span>Corner radius</span><strong>{config.appearance.cornerRadius}px</strong></span><input type="range" min="0" max="32" value={config.appearance.cornerRadius} onChange={(event) => setConfig((current) => ({ ...current, appearance: { ...current.appearance, cornerRadius: Number(event.target.value) } }))} /></label>
+                  <button className="button button-secondary button-full" type="button" onClick={() => setConfig((current) => ({ ...current, appearance: structuredClone(defaultProfileConfig.appearance) }))}>Restore original palette</button>
+                </EditorCard>
+              </>
+            ) : null}
+
+            {activePanel === "sections" ? (
+              <>
+                <EditorCard title="README order" eyebrow="Choose and arrange sections">
+                  <div className="section-order-list">
+                    {orderedSectionOptions.map((section) => {
+                      const enabled = config.sections.includes(section);
+                      const index = config.sections.indexOf(section);
+                      return (
+                        <div className={enabled ? "section-order-item section-order-item-enabled" : "section-order-item"} key={section}>
+                          <label><input type="checkbox" checked={enabled} disabled={enabled && config.sections.length === 1} onChange={() => toggleSection(section)} /><span>{section === "repositories" ? "Featured projects" : section.charAt(0).toUpperCase() + section.slice(1)}</span></label>
+                          {enabled ? <ItemActions index={index} length={config.sections.length} onMove={(direction) => setConfig((current) => ({ ...current, sections: moveItem(current.sections, index, direction) }))} onRemove={() => toggleSection(section)} removeLabel="Hide" /> : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </EditorCard>
+                <EditorCard title="Section headings" eyebrow="README labels">
+                  <TextField label="Projects heading" value={config.sectionHeadings.repositories} maxLength={70} onChange={(value) => setConfig((current) => ({ ...current, sectionHeadings: { ...current.sectionHeadings, repositories: value } }))} />
+                  <TextField label="Skills heading" value={config.sectionHeadings.skills} maxLength={70} onChange={(value) => setConfig((current) => ({ ...current, sectionHeadings: { ...current.sectionHeadings, skills: value } }))} />
+                  <TextField label="Links heading" value={config.sectionHeadings.links} maxLength={70} onChange={(value) => setConfig((current) => ({ ...current, sectionHeadings: { ...current.sectionHeadings, links: value } }))} />
+                </EditorCard>
+                <EditorCard title="Custom Markdown" eyebrow="Raw HTML is not supported">
+                  <TextField label="Heading" value={config.custom.heading} maxLength={70} onChange={(value) => setConfig((current) => ({ ...current, custom: { ...current.custom, heading: value } }))} />
+                  <TextArea label="Markdown content" value={config.custom.markdown} maxLength={4000} rows={8} hint="This text is kept in your configuration and added to the generated README." onChange={(value) => setConfig((current) => ({ ...current, custom: { ...current.custom, markdown: value } }))} />
+                </EditorCard>
+                <EditorCard title="README footer" eyebrow="Closing message">
+                  <TextField label="Emphasis" value={config.footer.emphasis} maxLength={100} onChange={(value) => setConfig((current) => ({ ...current, footer: { ...current.footer, emphasis: value } }))} />
+                  <TextField label="Second line" value={config.footer.line} maxLength={120} onChange={(value) => setConfig((current) => ({ ...current, footer: { ...current.footer, line: value } }))} />
+                </EditorCard>
+              </>
+            ) : null}
+
+            {activePanel === "export" ? (
+              <>
+                <EditorCard title="Ready-to-upload bundle" eyebrow="README + assets + saved config">
+                  <div className={validation.success ? "export-health export-health-good" : "export-health export-health-error"}>
+                    <span aria-hidden="true">{validation.success ? "✓" : "!"}</span>
+                    <div><strong>{validation.success ? "Configuration is valid" : "Fix configuration errors"}</strong><p>{validation.success ? `${artifacts.length} files will be included. ${warnings.length ? `${warnings.length} design warning${warnings.length === 1 ? "" : "s"}.` : "No design warnings."}` : firstValidationMessage()}</p></div>
+                  </div>
+                  {warnings.length > 0 ? <ul className="warning-list">{warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul> : null}
+                  <div className="export-actions"><button className="button button-primary" type="button" onClick={downloadBundle} disabled={isExporting}>{isExporting ? "Building…" : "Download complete ZIP"}</button><button className="button button-secondary" type="button" onClick={copyReadme}>Copy README</button><button className="button button-secondary" type="button" onClick={downloadConfig}>Download config</button></div>
+                  <button className="button button-secondary button-full" type="button" onClick={() => configFileInput.current?.click()}>Import a saved config</button>
+                </EditorCard>
+                <EditorCard title="Generated files" eyebrow="Deterministic output">
+                  <ul className="artifact-list">{artifacts.map((artifact) => <li key={artifact.path}><span>{artifact.path}</span><small>{new Blob([artifact.content]).size.toLocaleString()} B</small></li>)}</ul>
+                </EditorCard>
+                <EditorCard title="README source" eyebrow="GitHub-flavored Markdown">
+                  <textarea className="code-output" value={readme || "Fix the configuration to generate a README."} readOnly rows={18} aria-label="Generated README source" />
+                </EditorCard>
+              </>
+            ) : null}
+          </div>
+        </aside>
+
+        <section className="preview-pane" aria-label="Live profile preview">
+          <div className="preview-toolbar">
+            <div className="preview-title"><span>LIVE OUTPUT</span><strong>{viewport} / {theme} / {motion}</strong></div>
+            <div className="preview-controls">
+              <div className="segmented" aria-label="Preview theme">{(["dark", "light"] as const).map((value) => <button key={value} type="button" aria-pressed={theme === value} onClick={() => setTheme(value)}>{value}</button>)}</div>
+              <div className="segmented" aria-label="Preview viewport">{(["desktop", "mobile"] as const).map((value) => <button key={value} type="button" aria-pressed={viewport === value} onClick={() => setViewport(value)}>{value}</button>)}</div>
+              <div className="segmented" aria-label="Preview motion">{(["animated", "static"] as const).map((value) => <button key={value} type="button" aria-pressed={motion === value} onClick={() => { setMotion(value); setPaused(false); }}>{value}</button>)}</div>
+              {motion === "animated" ? <button className="toolbar-button" type="button" onClick={() => setPaused((value) => !value)}>{paused ? "Resume" : "Pause"}</button> : null}
+              {motion === "animated" ? <button className="toolbar-button" type="button" onClick={() => { setReplayKey((value) => value + 1); setPaused(false); }}>Replay</button> : null}
+            </div>
+          </div>
+          <div className={`preview-stage preview-stage-${viewport}`}>
+            <div className="preview-warning-strip" hidden={warnings.length === 0}><span>{warnings.length}</span> design warning{warnings.length === 1 ? "" : "s"} — review Export before publishing.</div>
+            <ProfilePreview config={config} variant={variant} paused={paused} replayKey={replayKey} />
+          </div>
+        </section>
+      </main>
+
+      {notice ? <div className={`toast toast-${notice.tone}`} role="status">{notice.message}</div> : null}
+    </div>
+  );
+}
