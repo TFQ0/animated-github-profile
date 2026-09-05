@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="610" viewBox="0 0 1200 610" fill="none" role="img" aria-labelledby="tfq-dark-desktop-title tfq-dark-desktop-desc">
+  <title id="tfq-dark-desktop-title">TFQ0 — Talal Alqahs | Quality Control</title>
+  <desc id="tfq-dark-desktop-desc">Software Test Engineer and Independent Developer. Build it. Break it. Make it better. A static, completed illustration of four demo checks. These are not live test results. This version contains no animation.</desc>
+  <defs>
+    <pattern id="tfq-dark-desktop-grid" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".65" fill="#97ACAF" opacity=".12"/></pattern>
+    <clipPath id="tfq-dark-desktop-command" clipPathUnits="userSpaceOnUse"><rect class="typed" width="201.6" height="30"/></clipPath>
+  </defs>
+  <style>
+    .bg{fill:#0C1418} .panel{fill:#111E24} .inner{fill:#0A1216}
+    .line{stroke:#26383E;stroke-width:1} .ink{fill:#ECF1ED}
+    .muted{fill:#97ACAF} .accent{fill:#ACF5C6} .soft{fill:#173B31}
+    .mono{font-family:'SFMono-Regular',Consolas,'Liberation Mono','Courier New',monospace}
+    .sans{font-family:Arial,Helvetica,sans-serif}
+    .pending,.running,.type-cursor,.trail,.boot-label{opacity:0}
+    .pass,.complete,.ready-label{opacity:1}
+    .typed{transform:scaleX(1);transform-origin:0 0}
+    .ring{fill:none;stroke:#ACF5C6;stroke-width:1.5;opacity:.4}
+    </style>
+  <rect x=".5" y=".5" width="1199" height="609" rx="18" class="bg line"/>
+  <rect x="1" y="64" width="1198" height="482" fill="url(#tfq-dark-desktop-grid)"/>
+  <path d="M1 64H1199" class="line"/>
+  <!-- Static reduced-motion fallback. -->
+  <!-- Monogram: an original geometric terminal mark. -->
+  <rect x="30" y="19" width="27" height="27" rx="5" class="soft"/>
+  <path d="M36 27l5 5-5 5m9 0h6" stroke="#ACF5C6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+<text x="70" y="38" class="mono ink" font-size="17" font-weight="700">TFQ0</text>
+<text x="131" y="38" class="mono muted" font-size="13" >/ QUALITY CONTROL</text>
+<circle cx="1073" cy="33" r="4" class="accent signal"/>
+<text x="1087" y="38" class="mono muted" font-size="11" >PROFILE / 01</text>
+<text x="42" y="129" class="mono accent" font-size="15" letter-spacing="2.4">TALAL ALQAHS</text>
+<text x="38" y="206" class="sans ink" font-size="64" font-weight="700" letter-spacing="-2.9">Build it.</text>
+<text x="38" y="275" class="sans ink" font-size="64" font-weight="700" letter-spacing="-2.9">Break it.</text>
+<text x="38" y="344" class="sans accent" font-size="64" font-weight="700" letter-spacing="-2.9">Make it better.</text>
+<text x="42" y="397" class="sans ink" font-size="21" >Software Test Engineer</text>
+<text x="42" y="427" class="sans muted" font-size="17" >Independent Developer  /  Open Source</text>
+<g transform="translate(632 112)">
+<rect width="528" height="342" rx="12" class="inner line"/>
+<path d="M0 43H528" class="line"/>
+<circle cx="21" cy="22" r="4" fill="#779B9E" opacity="0.9"/>
+<circle cx="36" cy="22" r="4" fill="#779B9E" opacity="0.68"/>
+<circle cx="51" cy="22" r="4" fill="#779B9E" opacity="0.46"/>
+<text x="79" y="27" class="mono muted" font-size="13" >tfq0@control:~</text>
+<text x="507" y="27" class="mono muted" font-size="11" text-anchor="end" letter-spacing=".5">DEMO RUN</text>
+<text x="21" y="84" class="mono accent" font-size="16" >$</text>
+<g transform="translate(46 63)"><g clip-path="url(#tfq-dark-desktop-command)"><text x="0" y="21" class="mono ink" font-size="16" >./quality-check --all</text></g><g class="type-cursor"><rect x="0" y="5" width="9.6" height="20" class="accent caret"/></g></g>
+<text x="21" y="135" class="mono muted" font-size="12" >01</text>
+<text x="58" y="135" class="mono ink" font-size="16" >API contracts</text>
+<text x="505" y="135" class="mono muted pending wait-1" font-size="12" text-anchor="end">QUEUED</text>
+<text x="505" y="135" class="mono accent running run-1" font-size="12" text-anchor="end">RUNNING</text>
+<g class="pass pass-1"><path d="M440 129l4 4 8-9" stroke="#ACF5C6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><text x="505" y="135" class="mono accent" font-size="13" text-anchor="end">PASS</text></g>
+<path d="M58 147H506" stroke="#253B3F" stroke-width="1"/>
+<g transform="translate(58 147)"><rect width="448" height="1" class="accent rail-1" style="transform-origin:0 0"/></g>
+<text x="21" y="176" class="mono muted" font-size="12" >02</text>
+<text x="58" y="176" class="mono ink" font-size="16" >UI regression</text>
+<text x="505" y="176" class="mono muted pending wait-2" font-size="12" text-anchor="end">QUEUED</text>
+<text x="505" y="176" class="mono accent running run-2" font-size="12" text-anchor="end">RUNNING</text>
+<g class="pass pass-2"><path d="M440 170l4 4 8-9" stroke="#ACF5C6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><text x="505" y="176" class="mono accent" font-size="13" text-anchor="end">PASS</text></g>
+<path d="M58 188H506" stroke="#253B3F" stroke-width="1"/>
+<g transform="translate(58 188)"><rect width="448" height="1" class="accent rail-2" style="transform-origin:0 0"/></g>
+<text x="21" y="217" class="mono muted" font-size="12" >03</text>
+<text x="58" y="217" class="mono ink" font-size="16" >Integration tests</text>
+<text x="505" y="217" class="mono muted pending wait-3" font-size="12" text-anchor="end">QUEUED</text>
+<text x="505" y="217" class="mono accent running run-3" font-size="12" text-anchor="end">RUNNING</text>
+<g class="pass pass-3"><path d="M440 211l4 4 8-9" stroke="#ACF5C6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><text x="505" y="217" class="mono accent" font-size="13" text-anchor="end">PASS</text></g>
+<path d="M58 229H506" stroke="#253B3F" stroke-width="1"/>
+<g transform="translate(58 229)"><rect width="448" height="1" class="accent rail-3" style="transform-origin:0 0"/></g>
+<text x="21" y="258" class="mono muted" font-size="12" >04</text>
+<text x="58" y="258" class="mono ink" font-size="16" >Build pipeline</text>
+<text x="505" y="258" class="mono muted pending wait-4" font-size="12" text-anchor="end">QUEUED</text>
+<text x="505" y="258" class="mono accent running run-4" font-size="12" text-anchor="end">RUNNING</text>
+<g class="pass pass-4"><path d="M440 252l4 4 8-9" stroke="#ACF5C6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><text x="505" y="258" class="mono accent" font-size="13" text-anchor="end">PASS</text></g>
+<path d="M58 270H506" stroke="#253B3F" stroke-width="1"/>
+<g transform="translate(58 270)"><rect width="448" height="1" class="accent rail-4" style="transform-origin:0 0"/></g>
+<path d="M0 298H528" class="line"/>
+<g class="complete"><text x="22" y="325" class="mono accent" font-size="17" >↳</text><text x="47" y="325" class="mono accent" font-size="13" >Checks complete. Keep improving.</text></g>
+<g class="boot-label"><text x="22" y="325" class="mono muted" font-size="17" >↳</text><text x="47" y="325" class="mono muted" font-size="13" >Inspect. Verify. Improve.</text></g>
+</g>
+<path d="M30 477H1170" class="line"/>
+<text x="42" y="518" class="mono muted" font-size="12" letter-spacing="1">THE WORKFLOW</text>
+<path d="M232 513H997" stroke="#253B3F" stroke-width="1.5"/>
+<path d="M232 513H997" stroke="#ACF5C6" stroke-width="2" stroke-dasharray="60 940" pathLength="1000" class="trail"/>
+<circle cx="232" cy="513" r="13" class="bg line"/>
+<text x="232" y="517" class="mono accent" font-size="11" text-anchor="middle">1</text>
+<text x="232" y="551" class="mono ink" font-size="12" text-anchor="middle" letter-spacing="1.2">BUILD</text>
+<circle cx="487" cy="513" r="13" class="bg line"/>
+<text x="487" y="517" class="mono accent" font-size="11" text-anchor="middle">2</text>
+<text x="487" y="551" class="mono ink" font-size="12" text-anchor="middle" letter-spacing="1.2">TEST</text>
+<circle cx="742" cy="513" r="13" class="bg line"/>
+<text x="742" y="517" class="mono accent" font-size="11" text-anchor="middle">3</text>
+<text x="742" y="551" class="mono ink" font-size="12" text-anchor="middle" letter-spacing="1.2">LEARN</text>
+<circle cx="997" cy="513" r="13" class="bg line"/>
+<text x="997" y="517" class="mono accent" font-size="11" text-anchor="middle">4</text>
+<text x="997" y="551" class="mono ink" font-size="12" text-anchor="middle" letter-spacing="1.2">REPEAT</text>
+<path d="M30 567H1170" class="line"/>
+<text x="30" y="592" class="mono muted" font-size="11" letter-spacing=".9">LESS NOISE. MORE SIGNAL.</text>
+<text x="1170" y="592" class="mono muted" font-size="11" text-anchor="end" letter-spacing=".3">NO MONOPOLY. YES TO OPEN SOURCE.</text>
+</svg>

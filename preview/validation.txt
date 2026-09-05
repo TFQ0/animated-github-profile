@@ -1,0 +1,14 @@
+All 8 SVGs parse as XML and have no scripts, foreignObject, embedded fonts, or external resources.
+PASS: desktop, dark, motion=no-preference -> tfq-control-center-dark.svg
+PASS: desktop, dark, motion=reduce -> tfq-control-center-dark-static.svg
+PASS: desktop, light, motion=no-preference -> tfq-control-center-light.svg
+PASS: desktop, light, motion=reduce -> tfq-control-center-light-static.svg
+PASS: mobile, dark, motion=no-preference -> tfq-control-center-mobile-dark.svg
+PASS: mobile, dark, motion=reduce -> tfq-control-center-mobile-dark-static.svg
+PASS: mobile, light, motion=no-preference -> tfq-control-center-mobile-light.svg
+PASS: mobile, light, motion=reduce -> tfq-control-center-mobile-light-static.svg
+PASS: standalone preview theme, size, pause/resume, and replay controls; no JavaScript errors or external network requests.
+PASS: 390px preview has no document-level horizontal overflow (project table scrolls within its container).
+Animated SVG was tested as an actual img; different timestamps render different frames.
+Reduced-motion selection is handled in the parent picture element using static SVGs; embedded-image media emulation was not reliable on its own.
+Not deployed: live GitHub rendering and non-Chromium browsers have not been tested.
