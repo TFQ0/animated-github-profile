@@ -98,9 +98,9 @@ const compositionLayouts = {
       identityLeft: 126, identityWidth: 948, nameY: 96,
       headlineY: [139, 181, 223], headlineSize: 39, headlineSpacing: -1.6,
       roleY: 252, roleSize: 18, secondaryRoleY: 276, secondaryRoleSize: 14,
-      terminalX: 90, terminalY: 294, terminalWidth: 1020, terminalHeight: 190,
-      workflowY: 522, workflowStartX: 160, workflowEndX: 1040, workflowLabelY: 550,
-      contentDividerY: 497,
+      terminalX: 90, terminalY: 295, terminalWidth: 1020, terminalHeight: 205,
+      workflowY: 534, workflowStartX: 160, workflowEndX: 1040, workflowLabelY: 552,
+      contentDividerY: 510,
     },
     mobile: {
       ...sharedMobile,
@@ -115,10 +115,10 @@ const compositionLayouts = {
   "terminal-focus": {
     desktop: {
       ...sharedDesktop,
-      identityLeft: 768, identityWidth: 365, nameY: 122,
+      identityLeft: 67, identityWidth: 365, nameY: 122,
       headlineY: [174, 227, 280], headlineSize: 49, headlineSpacing: -2,
       roleY: 323, roleSize: 18, secondaryRoleY: 350, secondaryRoleSize: 14,
-      terminalX: 45, terminalY: 100, terminalWidth: 665, terminalHeight: 352,
+      terminalX: 490, terminalY: 100, terminalWidth: 665, terminalHeight: 352,
       workflowY: 513, workflowStartX: 214, workflowEndX: 1015, workflowLabelY: 551,
       contentDividerY: 477,
     },
@@ -194,12 +194,20 @@ const compositionLayouts = {
   },
 } satisfies Record<Composition, Record<HeroViewport, LayoutInput>>;
 
+function terminalMinimumHeight(style: ProfileConfig["layout"]["terminalStyle"]): number {
+  if (style === "window") return 205;
+  if (style === "panel") return 195;
+  return 185;
+}
+
 function resolveLayout(config: ProfileConfig, viewport: HeroViewport): Layout {
   const layout: Layout = {
     ...compositionLayouts[config.layout.composition][viewport],
     identityAnchor: "start",
   };
   const terminalFirst = config.layout.contentOrder === "terminal-first";
+  const verticallyStacked = viewport === "desktop" && config.layout.composition === "stacked";
+  const minimumTerminalHeight = terminalMinimumHeight(config.layout.terminalStyle);
 
   if (config.layout.density === "compact") {
     const first = layout.headlineY[0];
@@ -208,13 +216,13 @@ function resolveLayout(config: ProfileConfig, viewport: HeroViewport): Layout {
     layout.headlineSize = Math.max(34, Math.round(layout.headlineSize * .9));
     layout.roleY = layout.headlineY[2] + 34;
     layout.secondaryRoleY = layout.roleY + 24;
-    layout.terminalHeight = Math.max(185, layout.terminalHeight - 16);
+    layout.terminalHeight = Math.max(minimumTerminalHeight, layout.terminalHeight - 16);
   } else if (config.layout.density === "spacious") {
     const first = layout.headlineY[0];
-    const gap = (layout.headlineY[1] - first) * 1.06;
+    const gap = (layout.headlineY[1] - first) * (verticallyStacked ? 1.02 : 1.06);
     layout.headlineY = [first, first + gap, first + gap * 2];
-    layout.roleY = layout.headlineY[2] + 44;
-    layout.secondaryRoleY = layout.roleY + 29;
+    layout.roleY = layout.headlineY[2] + (verticallyStacked ? 34 : 44);
+    layout.secondaryRoleY = layout.roleY + (verticallyStacked ? 24 : 29);
     layout.identityLeft += 10;
     layout.identityWidth = Math.max(240, layout.identityWidth - 20);
     layout.terminalX += 8;
@@ -231,23 +239,39 @@ function resolveLayout(config: ProfileConfig, viewport: HeroViewport): Layout {
       layout.terminalX = layout.width - layout.terminalX - layout.terminalWidth;
       layout.identityAnchor = "end";
     } else if (config.layout.composition === "stacked") {
+      const density = config.layout.density;
       layout.terminalY = 88;
-      layout.terminalHeight = 205;
-      layout.nameY = 327;
-      layout.headlineY = [365, 403, 441];
-      layout.headlineSize = 35;
-      layout.roleY = 471;
-      layout.secondaryRoleY = 494;
-      layout.contentDividerY = 505;
+      layout.terminalHeight = Math.max(
+        minimumTerminalHeight,
+        density === "compact" ? 204 : density === "comfortable" ? 210 : 214,
+      );
+      layout.nameY = layout.terminalY + layout.terminalHeight + 24;
+      const firstHeadlineY = layout.nameY + 37;
+      const headlineGap = density === "compact" ? 36 : density === "comfortable" ? 40 : 42;
+      layout.headlineY = [firstHeadlineY, firstHeadlineY + headlineGap, firstHeadlineY + headlineGap * 2];
+      layout.headlineSize = density === "compact" ? 33 : density === "comfortable" ? 35 : 37;
+      layout.roleY = layout.headlineY[2] + 29;
+      layout.secondaryRoleY = layout.roleY + 22;
+      layout.contentDividerY = layout.secondaryRoleY + 21;
+      layout.workflowY = Math.min(542, Math.max(530, layout.contentDividerY + 23));
+      layout.workflowLabelY = Math.min(555, layout.workflowY + 22);
     } else if (config.layout.composition === "poster") {
+      const density = config.layout.density;
       layout.terminalY = 92;
-      layout.terminalHeight = 190;
-      layout.nameY = 319;
-      layout.headlineY = [358, 400, 442];
-      layout.headlineSize = 39;
-      layout.roleY = 473;
-      layout.secondaryRoleY = 497;
-      layout.contentDividerY = 505;
+      layout.terminalHeight = Math.max(
+        minimumTerminalHeight,
+        density === "compact" ? 185 : density === "comfortable" ? 195 : 205,
+      );
+      layout.nameY = layout.terminalY + layout.terminalHeight + 26;
+      const firstHeadlineY = layout.nameY + 38;
+      const headlineGap = density === "compact" ? 36 : density === "comfortable" ? 40 : 42;
+      layout.headlineY = [firstHeadlineY, firstHeadlineY + headlineGap, firstHeadlineY + headlineGap * 2];
+      layout.headlineSize = density === "compact" ? 34 : density === "comfortable" ? 37 : 40;
+      layout.roleY = layout.headlineY[2] + 30;
+      layout.secondaryRoleY = layout.roleY + 22;
+      layout.contentDividerY = layout.secondaryRoleY + 20;
+      layout.workflowY = Math.min(542, Math.max(519, layout.contentDividerY + 23));
+      layout.workflowLabelY = Math.min(555, layout.workflowY + 22);
     }
   }
 
@@ -265,6 +289,8 @@ function resolveLayout(config: ProfileConfig, viewport: HeroViewport): Layout {
     layout.workflowY = 811;
     layout.workflowLabelY = 850;
   }
+
+  layout.terminalHeight = Math.max(minimumTerminalHeight, layout.terminalHeight);
 
   if (config.layout.textAlign === "center") {
     layout.identityAnchor = "middle";
@@ -346,27 +372,110 @@ function frameAccents(composition: Composition, layout: Layout, palette: Palette
     case "split":
       return "";
     case "stacked":
-      return `<path d="M30 82H145M${layout.width - 145} 82H${layout.width - 30}" stroke="${palette.accent}" opacity=".55"/><path d="M30 ${layout.contentDividerY}H${layout.width - 30}" stroke="${palette.line}"/>`;
+      return `<path d="M30 82H145M${layout.width - 145} 82H${layout.width - 30}" stroke="${palette.accent}" opacity=".55"/>`;
     case "terminal-focus":
       return `<path d="M14 78h34M14 78v34M${layout.width - 14} 78h-34M${layout.width - 14} 78v34" stroke="${palette.accent}" stroke-width="3"/><path d="M14 ${layout.footerDividerY - 14}h22M${layout.width - 14} ${layout.footerDividerY - 14}h-22" stroke="${palette.accent}" stroke-width="3"/>`;
     case "hud-grid":
       return `<g fill="none" stroke="${palette.accent}"><path d="M18 92h78l18-18h92" opacity=".72"/><path d="M${layout.width - 18} ${layout.footerDividerY - 22}h-92l-18 18h-78" opacity=".5"/><path d="M${layout.width - 104} 76h34l16 16" stroke-width="2"/><path d="M${Math.round(layout.width * .47)} 76l48 ${layout.contentDividerY - 94}" opacity=".24"/></g>`;
     case "bento":
-      return `<rect x="42" y="88" width="${layout.width === 1200 ? 520 : 536}" height="${layout.width === 1200 ? 302 : 250}" rx="${Math.min(18, layout.width === 1200 ? 18 : 14)}" fill="${palette.accentSoft}" opacity=".22" stroke="${palette.line}"/><path d="M42 ${layout.contentDividerY}H${layout.width - 42}" stroke="${palette.line}"/>`;
+      return "";
     case "poster":
       return `<path d="M${layout.width === 1200 ? 602 : 30} 86V${layout.contentDividerY - 18}" stroke="${palette.line}"/><circle cx="${layout.width - 76}" cy="128" r="48" fill="none" stroke="${palette.accent}" opacity=".22" stroke-width="12"/><text x="${layout.width - 40}" y="${layout.contentDividerY - 30}" class="mono soft" font-size="${layout.width === 1200 ? 92 : 64}" text-anchor="end" opacity=".5">01</text>`;
   }
 }
 
-function compositionPanels(config: ProfileConfig, layout: Layout, palette: Palette): string {
-  if (config.layout.composition === "bento" && layout.width === 1200) {
-    return `<rect x="600" y="94" width="550" height="294" rx="${config.layout.shapeSystem === "rounded" ? Math.min(20, config.appearance.cornerRadius) : 2}" fill="${palette.terminal}" opacity=".18" stroke="${palette.line}"/><rect x="600" y="399" width="550" height="65" rx="${config.layout.shapeSystem === "rounded" ? 12 : 2}" fill="${palette.accentSoft}" opacity=".22" stroke="${palette.line}"/>`;
+function panelSurfaceMarkup(
+  config: ProfileConfig,
+  palette: Palette,
+  region: "identity" | "terminal" | "workflow",
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  fill: string,
+  opacity: number,
+): string {
+  const shape = config.layout.shapeSystem;
+  const attributes = `data-panel-region="${region}" fill="${fill}" stroke="${palette.line}" opacity="${opacity}"`;
+  if (shape === "rounded") {
+    return `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${Math.min(20, config.appearance.cornerRadius)}" ${attributes}/>`;
   }
-  if (config.layout.composition === "terminal-focus") {
+  if (shape === "terminal") {
+    return `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="2" ${attributes}/>`;
+  }
+  return `<path d="${framePath(width, height, shape)}" transform="translate(${x} ${y})" ${attributes}/>`;
+}
+
+function compositionPanels(config: ProfileConfig, layout: Layout, palette: Palette): string {
+  if (config.layout.composition === "bento") {
+    const identityPanelX = Math.max(layout.width === 1200 ? 42 : 30, layout.identityLeft - (layout.width === 1200 ? 28 : 16));
+    const identityPanelEnd = Math.min(
+      layout.width - (layout.width === 1200 ? 42 : 30),
+      layout.identityLeft + layout.identityWidth + (layout.width === 1200 ? 28 : 16),
+    );
+    const identityPanelY = Math.max(78, layout.nameY - (layout.width === 1200 ? 33 : 29));
+    const identityPanelBottom = Math.min(
+      layout.contentDividerY - 10,
+      layout.secondaryRoleY + layout.secondaryRoleSize + 16,
+    );
+    const identityPanel = panelSurfaceMarkup(
+      config,
+      palette,
+      "identity",
+      identityPanelX,
+      identityPanelY,
+      identityPanelEnd - identityPanelX,
+      Math.max(28, identityPanelBottom - identityPanelY),
+      palette.accentSoft,
+      .22,
+    );
+
+    if (layout.width !== 1200) return identityPanel;
+
+    const terminalPanelX = Math.max(42, layout.terminalX - 12);
+    const terminalPanelEnd = Math.min(layout.width - 42, layout.terminalX + layout.terminalWidth + 12);
+    const terminalPanelY = layout.terminalY - 11;
+    const terminalPanel = panelSurfaceMarkup(
+      config,
+      palette,
+      "terminal",
+      terminalPanelX,
+      terminalPanelY,
+      terminalPanelEnd - terminalPanelX,
+      layout.terminalHeight + 22,
+      palette.terminal,
+      .18,
+    );
+    const workflowPanelX = Math.max(42, layout.workflowStartX - 20);
+    const workflowPanelEnd = Math.min(layout.width - 42, layout.workflowEndX + 20);
+    const workflowPanelY = layout.workflowY - 24;
+    const workflowPanel = panelSurfaceMarkup(
+      config,
+      palette,
+      "workflow",
+      workflowPanelX,
+      workflowPanelY,
+      workflowPanelEnd - workflowPanelX,
+      Math.min(58, layout.footerDividerY - 10 - workflowPanelY),
+      palette.accentSoft,
+      .22,
+    );
+    return `${identityPanel}${terminalPanel}${workflowPanel}`;
+  }
+  if (config.layout.composition === "terminal-focus" && layout.width === 1200) {
     return `<path d="M${layout.terminalX - 14} ${layout.terminalY - 14}H${layout.terminalX + layout.terminalWidth + 14}" stroke="${palette.accent}" stroke-width="3"/><text x="${layout.terminalX}" y="${layout.terminalY - 24}" class="mono accent" font-size="11" letter-spacing="2">SYSTEM SCOREBOARD</text>`;
   }
   if (config.layout.composition === "hud-grid") {
-    return `<path d="M${layout.identityLeft + layout.identityWidth + 16} 88L${layout.terminalX - 18} ${layout.contentDividerY - 18}" fill="none" stroke="${palette.accent}" opacity=".25"/><circle cx="${layout.width * .5}" cy="${layout.contentDividerY * .5}" r="54" fill="none" stroke="${palette.accent}" stroke-dasharray="4 10" opacity=".2"/>`;
+    const orbit = `<circle cx="${layout.width * .5}" cy="${layout.contentDividerY * .5}" r="54" fill="none" stroke="${palette.accent}" stroke-dasharray="4 10" opacity=".2"/>`;
+    if (layout.width !== 1200) return orbit;
+    const identityRight = layout.identityLeft + layout.identityWidth;
+    const terminalRight = layout.terminalX + layout.terminalWidth;
+    const gapStart = layout.identityLeft < layout.terminalX ? identityRight + 16 : terminalRight + 16;
+    const gapEnd = layout.identityLeft < layout.terminalX ? layout.terminalX - 18 : layout.identityLeft - 18;
+    const separator = gapEnd > gapStart
+      ? `<path data-hud-separator="true" d="M${gapStart} 88L${gapEnd} ${layout.contentDividerY - 18}" fill="none" stroke="${palette.accent}" opacity=".25"/>`
+      : "";
+    return `${separator}${orbit}`;
   }
   return "";
 }
@@ -493,7 +602,9 @@ function terminalMarkup(
   const commandBaseline = headerHeight + 41;
   const footerDividerY = layout.terminalHeight - 44;
   const desiredRowStart = headerHeight + (config.layout.terminalStyle === "window" ? 92 : 64);
-  const rowStart = Math.min(desiredRowStart, footerDividerY - 14 - (config.hero.checks.length - 1) * 12);
+  const latestRowStart = footerDividerY - 14 - (config.hero.checks.length - 1) * 12;
+  const earliestRowStart = commandBaseline + 22;
+  const rowStart = Math.min(latestRowStart, Math.max(earliestRowStart, Math.min(desiredRowStart, latestRowStart)));
   const availableRowSpan = Math.max(0, footerDividerY - rowStart - 13);
   const rowGap = config.hero.checks.length > 1
     ? Math.min(41, availableRowSpan / (config.hero.checks.length - 1))
@@ -503,14 +614,17 @@ function terminalMarkup(
     .map((label, index) => {
       const item = index + 1;
       const y = rowStart + index * rowGap;
-      const railY = y + Math.min(12, Math.max(5, rowGap * .42));
-      return `<text x="21" y="${y}" class="mono muted" font-size="12">${String(item).padStart(2, "0")}</text>
+      const railY = Math.min(
+        footerDividerY - 5,
+        y + Math.min(12, Math.max(5, rowGap * .42)),
+      );
+      return `<g data-terminal-row="${index}" data-row-y="${y}" data-rail-y="${railY}"><text x="21" y="${y}" class="mono muted" font-size="12">${String(item).padStart(2, "0")}</text>
 <text x="58" y="${y}" class="mono ink" font-size="${checkFontSize}"${textFitAttributes(label, checkFontSize, checkMarkX - 76, { mono: true })}>${escapeXml(label)}</text>
 <text x="${statusEnd}" y="${y}" class="mono muted pending wait-${item}" font-size="11" text-anchor="end"${textFitAttributes(config.hero.labels.queued, 11, 58, { mono: true })}>${escapeXml(config.hero.labels.queued)}</text>
 <text x="${statusEnd}" y="${y}" class="mono accent running run-${item}" font-size="11" text-anchor="end"${textFitAttributes(config.hero.labels.running, 11, 58, { mono: true })}>${escapeXml(config.hero.labels.running)}</text>
 <g class="pass pass-${item}"><path d="M${checkMarkX} ${y - 6}l4 4 8-9" stroke="${palette.accent}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><text x="${statusEnd}" y="${y}" class="mono accent" font-size="12" text-anchor="end"${textFitAttributes(config.hero.labels.passed, 12, 48, { mono: true })}>${escapeXml(config.hero.labels.passed)}</text></g>
 <path d="M58 ${railY}H${layout.terminalWidth - 22}" stroke="${palette.line}" stroke-width="1"/>
-<g transform="translate(58 ${railY})"><rect width="${railWidth}" height="1" class="accent rail-${item}" style="transform-origin:0 0"/></g>`;
+<g transform="translate(58 ${railY})"><rect width="${railWidth}" height="1" class="accent rail-${item}" style="transform-origin:0 0"/></g></g>`;
     })
     .join("\n");
 
@@ -527,7 +641,7 @@ function terminalMarkup(
 <text x="${statusEnd}" y="23" class="mono muted" font-size="11" text-anchor="end">${escapeXml(config.hero.labels.demoRun)}</text>`
       : `<path d="M0 ${headerHeight}H${layout.terminalWidth}" class="line"/><text x="2" y="18" class="mono muted" font-size="11">${escapeXml(config.identity.username)} / ${escapeXml(config.hero.labels.host)}</text>`;
 
-  return `<g transform="translate(${layout.terminalX} ${layout.terminalY})" data-terminal-style="${config.layout.terminalStyle}">
+  return `<g transform="translate(${layout.terminalX} ${layout.terminalY})" data-region="terminal" data-x="${layout.terminalX}" data-y="${layout.terminalY}" data-width="${layout.terminalWidth}" data-height="${layout.terminalHeight}" data-terminal-style="${config.layout.terminalStyle}" data-command-baseline="${commandBaseline}" data-row-start="${rowStart}" data-row-gap="${rowGap}" data-footer-divider="${footerDividerY}">
 ${panelFrameMarkup(config, layout.terminalWidth, layout.terminalHeight)}
 ${header}
 <text x="21" y="${commandBaseline}" class="mono accent" font-size="${layout.commandSize}">$</text>
@@ -564,43 +678,58 @@ function nodeShapeMarkup(
 
 function workflowMarkup(config: ProfileConfig, layout: Layout, palette: Palette): string {
   const { steps, style } = config.hero.workflow;
-  const availableWidth = layout.workflowEndX - layout.workflowStartX;
   const twoRows = layout.width === 620 && steps.length > 4;
   const rowSize = twoRows ? Math.ceil(steps.length / 2) : steps.length;
   const fontSize = layout.width === 620 ? 12 : 11;
+  const availableWidth = layout.workflowEndX - layout.workflowStartX;
+  const boxed = style === "cards" || style === "command-chain";
+  const boxedStartX = layout.width === 620
+    ? 30
+    : Math.max(210, layout.workflowStartX - 20);
+  const boxedEndX = layout.width === 620
+    ? layout.width - 30
+    : Math.min(layout.width - 42, layout.workflowEndX + 20);
+  const boxedWidth = boxedEndX - boxedStartX;
   const entries = steps.map((step, index) => {
     const row = twoRows ? Math.floor(index / rowSize) : 0;
     const indexInRow = twoRows ? index % rowSize : index;
     const itemsInRow = twoRows ? Math.min(rowSize, steps.length - row * rowSize) : steps.length;
-    const x = itemsInRow === 1
-      ? layout.workflowStartX + availableWidth / 2
-      : layout.workflowStartX + (availableWidth * indexInRow) / (itemsInRow - 1);
-    const y = twoRows ? layout.workflowY - 23 + row * 48 : layout.workflowY;
+    const y = twoRows ? layout.workflowY - 15 + row * 43 : layout.workflowY;
     const maxLabelWidth = Math.max(58, availableWidth / Math.max(1, itemsInRow) - 14);
     const shape = resolvedWorkflowShape(step.shape, config.layout.shapeSystem);
 
     if (style === "cards") {
-      const cardWidth = Math.min(twoRows ? 148 : 176, Math.max(74, availableWidth / itemsInRow - 10));
-      return `<g data-workflow-shape="${shape}"><rect x="${x - cardWidth / 2}" y="${y - 16}" width="${cardWidth}" height="34" rx="${config.layout.shapeSystem === "rounded" ? 9 : 1}" class="soft line"/><text x="${x - cardWidth / 2 + 12}" y="${y + 5}" class="mono accent" font-size="10">${String(index + 1).padStart(2, "0")}</text><text x="${x + 7}" y="${y + 5}" class="mono ink" font-size="${fontSize}" text-anchor="middle"${textFitAttributes(step.label, fontSize, cardWidth - 42, { mono: true })}>${escapeXml(step.label)}</text></g>`;
+      const cardWidth = Math.min(twoRows ? 148 : 176, Math.max(74, boxedWidth / itemsInRow - 10));
+      const x = itemsInRow === 1
+        ? boxedStartX + boxedWidth / 2
+        : boxedStartX + cardWidth / 2 + ((boxedWidth - cardWidth) * indexInRow) / (itemsInRow - 1);
+      return `<g data-workflow-shape="${shape}" data-workflow-row="${row}" data-workflow-x="${x - cardWidth / 2}" data-workflow-y="${y - 16}" data-workflow-width="${cardWidth}" data-workflow-height="34"><rect x="${x - cardWidth / 2}" y="${y - 16}" width="${cardWidth}" height="34" rx="${config.layout.shapeSystem === "rounded" ? 9 : 1}" class="soft line"/><text x="${x - cardWidth / 2 + 12}" y="${y + 5}" class="mono accent" font-size="10">${String(index + 1).padStart(2, "0")}</text><text x="${x + 7}" y="${y + 5}" class="mono ink" font-size="${fontSize}" text-anchor="middle"${textFitAttributes(step.label, fontSize, cardWidth - 42, { mono: true })}>${escapeXml(step.label)}</text></g>`;
     }
     if (style === "command-chain") {
-      const pillWidth = Math.min(154, Math.max(68, availableWidth / itemsInRow - 12));
-      return `<g data-workflow-shape="${shape}"><rect x="${x - pillWidth / 2}" y="${y - 14}" width="${pillWidth}" height="28" rx="2" class="inner line"/><text x="${x}" y="${y + 4}" class="mono ink" font-size="${fontSize}" text-anchor="middle"${textFitAttributes(step.label, fontSize, pillWidth - 16, { mono: true })}>${escapeXml(step.label)}</text>${indexInRow < itemsInRow - 1 ? `<text x="${x + pillWidth / 2 + 5}" y="${y + 4}" class="mono accent" font-size="12">›</text>` : ""}</g>`;
+      const pillWidth = Math.min(twoRows ? 148 : 154, Math.max(68, boxedWidth / itemsInRow - 12));
+      const x = itemsInRow === 1
+        ? boxedStartX + boxedWidth / 2
+        : boxedStartX + pillWidth / 2 + ((boxedWidth - pillWidth) * indexInRow) / (itemsInRow - 1);
+      return `<g data-workflow-shape="${shape}" data-workflow-row="${row}" data-workflow-x="${x - pillWidth / 2}" data-workflow-y="${y - 14}" data-workflow-width="${pillWidth}" data-workflow-height="28"><rect x="${x - pillWidth / 2}" y="${y - 14}" width="${pillWidth}" height="28" rx="2" class="inner line"/><text x="${x}" y="${y + 4}" class="mono ink" font-size="${fontSize}" text-anchor="middle"${textFitAttributes(step.label, fontSize, pillWidth - 16, { mono: true })}>${escapeXml(step.label)}</text>${indexInRow < itemsInRow - 1 ? `<text x="${x + pillWidth / 2 + 5}" y="${y + 4}" class="mono accent" font-size="12">›</text>` : ""}</g>`;
     }
+    const x = itemsInRow === 1
+      ? layout.workflowStartX + availableWidth / 2
+      : layout.workflowStartX + (availableWidth * indexInRow) / (itemsInRow - 1);
+    const labelY = twoRows ? y + 29 : layout.workflowLabelY;
     if (style === "minimal") {
-      return `<g data-workflow-shape="${shape}"><path d="M${x} ${y - 10}V${y + 10}" stroke="${palette.accent}" stroke-width="2"/><text x="${x}" y="${y + 27}" class="mono ink" font-size="${fontSize}" text-anchor="middle"${textFitAttributes(step.label, fontSize, maxLabelWidth, { mono: true })}>${escapeXml(step.label)}</text></g>`;
+      return `<g data-workflow-shape="${shape}" data-workflow-row="${row}"><path d="M${x} ${y - 10}V${y + 10}" stroke="${palette.accent}" stroke-width="2"/><text x="${x}" y="${labelY}" class="mono ink" font-size="${fontSize}" text-anchor="middle"${textFitAttributes(step.label, fontSize, maxLabelWidth, { mono: true })}>${escapeXml(step.label)}</text></g>`;
     }
 
     const nodeSize = style === "arcade-track" ? 28 : style === "telemetry" ? 24 : 26;
     const connectorClass = style === "telemetry" ? "accent" : "ink";
-    return `<g data-workflow-shape="${shape}">${nodeShapeMarkup(x, y, nodeSize, shape)}<text x="${x}" y="${y + 4}" class="mono ${connectorClass}" font-size="10" text-anchor="middle">${index + 1}</text><text x="${x}" y="${y + 29}" class="mono ink" font-size="${fontSize}" text-anchor="middle" letter-spacing=".8"${textFitAttributes(step.label, fontSize, maxLabelWidth, { mono: true, letterSpacing: .8 })}>${escapeXml(step.label)}</text></g>`;
+    return `<g data-workflow-shape="${shape}" data-workflow-row="${row}">${nodeShapeMarkup(x, y, nodeSize, shape)}<text x="${x}" y="${y + 4}" class="mono ${connectorClass}" font-size="10" text-anchor="middle">${index + 1}</text><text x="${x}" y="${labelY}" class="mono ink" font-size="${fontSize}" text-anchor="middle" letter-spacing=".8"${textFitAttributes(step.label, fontSize, maxLabelWidth, { mono: true, letterSpacing: .8 })}>${escapeXml(step.label)}</text></g>`;
   }).join("\n");
 
   const connectors = Array.from({ length: twoRows ? 2 : 1 }, (_, row) => {
     const rowStartIndex = row * rowSize;
     const rowItems = Math.min(rowSize, steps.length - rowStartIndex);
     if (rowItems < 2 || ["cards", "command-chain", "minimal"].includes(style)) return "";
-    const y = twoRows ? layout.workflowY - 23 + row * 48 : layout.workflowY;
+    const y = twoRows ? layout.workflowY - 15 + row * 43 : layout.workflowY;
     const dash = style === "telemetry" ? ` stroke-dasharray="5 7"` : "";
     const width = style === "arcade-track" ? 3 : 1.5;
     return `<path d="M${layout.workflowStartX} ${y}H${layout.workflowEndX}" stroke="${palette.line}" stroke-width="${width}"${dash}/><path d="M${layout.workflowStartX} ${y}H${layout.workflowEndX}" stroke="${palette.accent}" stroke-width="2" stroke-dasharray="60 940" pathLength="1000" class="trail"/>`;
@@ -609,7 +738,7 @@ function workflowMarkup(config: ProfileConfig, layout: Layout, palette: Palette)
     ? `<text x="42" y="${layout.workflowY + 4}" class="mono muted" font-size="12" letter-spacing="1"${textFitAttributes(config.hero.labels.workflow, 12, 150, { mono: true, letterSpacing: 1 })}>${escapeXml(config.hero.labels.workflow)}</text>`
     : "";
 
-  return `<g data-workflow-style="${style}">${heading}${connectors}${entries}</g>`;
+  return `<g data-region="workflow" data-workflow-style="${style}">${heading}${connectors}${entries}</g>`;
 }
 
 function decorationColor(decoration: Decoration, palette: Palette): string {
@@ -630,11 +759,12 @@ function decorationsMarkup(config: ProfileConfig, layout: Layout, clipId: string
       ? `fill="${color}" stroke="none"`
       : `fill="none" stroke="${color}" stroke-width="2"`;
     const transform = `rotate(${decoration.rotation} ${x} ${y})`;
-    if (decoration.shape === "circle") return `<circle cx="${x}" cy="${y}" r="${half}" ${paint} opacity="${decoration.opacity}" transform="${transform}"/>`;
-    if (decoration.shape === "square") return `<rect x="${x - half}" y="${y - half}" width="${decoration.size}" height="${decoration.size}" ${paint} opacity="${decoration.opacity}" transform="${transform}"/>`;
-    if (decoration.shape === "diamond") return `<path d="M${x} ${y - half}L${x + half} ${y}L${x} ${y + half}L${x - half} ${y}Z" ${paint} opacity="${decoration.opacity}" transform="${transform}"/>`;
-    if (decoration.shape === "cross") return `<path d="M${x - half} ${y}H${x + half}M${x} ${y - half}V${y + half}" fill="none" stroke="${color}" stroke-width="${decoration.style === "fill" ? 5 : 2}" opacity="${decoration.opacity}" transform="${transform}"/>`;
-    return `<path d="M${x - half} ${y}H${x + half}" fill="none" stroke="${color}" stroke-width="${decoration.style === "fill" ? 5 : 2}" opacity="${decoration.opacity}" transform="${transform}"/>`;
+    const marker = `data-decoration-shape="${decoration.shape}"`;
+    if (decoration.shape === "circle") return `<circle ${marker} cx="${x}" cy="${y}" r="${half}" ${paint} opacity="${decoration.opacity}" transform="${transform}"/>`;
+    if (decoration.shape === "square") return `<rect ${marker} x="${x - half}" y="${y - half}" width="${decoration.size}" height="${decoration.size}" ${paint} opacity="${decoration.opacity}" transform="${transform}"/>`;
+    if (decoration.shape === "diamond") return `<path ${marker} d="M${x} ${y - half}L${x + half} ${y}L${x} ${y + half}L${x - half} ${y}Z" ${paint} opacity="${decoration.opacity}" transform="${transform}"/>`;
+    if (decoration.shape === "cross") return `<path ${marker} d="M${x - half} ${y}H${x + half}M${x} ${y - half}V${y + half}" fill="none" stroke="${color}" stroke-width="${decoration.style === "fill" ? 5 : 2}" opacity="${decoration.opacity}" transform="${transform}"/>`;
+    return `<path ${marker} d="M${x - half} ${y}H${x + half}" fill="none" stroke="${color}" stroke-width="${decoration.style === "fill" ? 5 : 2}" opacity="${decoration.opacity}" transform="${transform}"/>`;
   }).join("\n");
   return markup ? `<g clip-path="url(#${clipId})" aria-hidden="true">${markup}</g>` : "";
 }
@@ -686,7 +816,7 @@ export function renderHeroSvg(config: ProfileConfig, variant: HeroVariant): stri
       ? `<rect x=".5" y=".5" width="${layout.width - 1}" height="${layout.height - 1}" rx="2" class="bg line"/>`
       : `<path d="${framePath(layout.width, layout.height, config.layout.shapeSystem)}" class="bg line"/>`;
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}" fill="none" role="img" lang="${escapeXml(config.accessibility.language)}" dir="${config.accessibility.direction}" aria-labelledby="${titleId} ${descId}" data-template="${config.template.id}" data-composition="${config.layout.composition}" data-shape-system="${config.layout.shapeSystem}" data-density="${config.layout.density}">
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}" fill="none" role="img" lang="${escapeXml(config.accessibility.language)}" dir="${config.accessibility.direction}" aria-labelledby="${titleId} ${descId}" data-template="${config.template.id}" data-composition="${config.layout.composition}" data-content-order="${config.layout.contentOrder}" data-shape-system="${config.layout.shapeSystem}" data-density="${config.layout.density}" data-pattern="${config.layout.pattern}" data-text-align="${config.layout.textAlign}" data-content-divider="${layout.contentDividerY}" data-footer-divider="${layout.footerDividerY}">
   <title id="${titleId}">${escapeXml(config.accessibility.svgTitle || `${config.identity.displayName} | ${config.identity.headerLabel}`)}</title>
   <desc id="${descId}">${escapeXml(config.identity.primaryRole)}. ${escapeXml(config.hero.headline.join(" "))} ${escapeXml(motionDescription)} Decorative demonstration; not live results.</desc>
   <defs>
@@ -698,7 +828,7 @@ export function renderHeroSvg(config: ProfileConfig, variant: HeroVariant): stri
   ${styles(config, palette, variant, prefix, commandWidth)}
   ${outerFrame}
   <g clip-path="url(#${frameClipId})">
-    <rect x="1" y="64" width="${layout.width - 2}" height="${contentHeight}" class="surface"/>
+    <rect data-region="surface" x="1" y="64" width="${layout.width - 2}" height="${contentHeight}" class="surface"/>
     <rect x="1" y="64" width="${layout.width - 2}" height="${contentHeight}" fill="url(#${patternId})"/>
   </g>
   ${decorationsMarkup(config, layout, contentClipId, palette)}
@@ -711,16 +841,18 @@ export function renderHeroSvg(config: ProfileConfig, variant: HeroVariant): stri
   <text x="131" y="38" class="mono muted" font-size="13"${textFitAttributes(`/ ${config.identity.headerLabel}`, 13, headerSignalX - 153, { mono: true })}>/ ${escapeXml(config.identity.headerLabel)}</text>
   <circle cx="${headerSignalX}" cy="33" r="4" class="accent signal"/>
   <text x="${profileTextX}" y="38" class="mono muted" font-size="11" text-anchor="end"${textFitAttributes(config.identity.profileLabel, 11, profileTextX - headerSignalX - 14, { mono: true })}>${escapeXml(config.identity.profileLabel)}</text>
+  <g data-region="identity" data-x="${layout.identityLeft}" data-y="${layout.nameY}" data-width="${layout.identityWidth}" data-bottom="${layout.secondaryRoleY + Math.ceil(layout.secondaryRoleSize * .32)}">
   <text x="${identityX}" y="${layout.nameY}" class="mono accent" font-size="${variant.viewport === "mobile" ? 16 : 15}" letter-spacing="${variant.viewport === "mobile" ? 2 : 2.4}"${identityAnchor}${textFitAttributes(config.identity.eyebrow, variant.viewport === "mobile" ? 16 : 15, headlineMaxWidth, { mono: true, letterSpacing: variant.viewport === "mobile" ? 2 : 2.4 })}>${escapeXml(config.identity.eyebrow)}</text>
   ${headline}
   <text x="${identityX}" y="${layout.roleY}" class="sans ink" font-size="${layout.roleSize}"${identityAnchor}${textFitAttributes(config.identity.primaryRole, layout.roleSize, headlineMaxWidth)}>${escapeXml(config.identity.primaryRole)}</text>
   <text x="${identityX}" y="${layout.secondaryRoleY}" class="sans muted" font-size="${layout.secondaryRoleSize}"${identityAnchor}${textFitAttributes(config.identity.secondaryRole, layout.secondaryRoleSize, headlineMaxWidth)}>${escapeXml(config.identity.secondaryRole)}</text>
+  </g>
   ${terminalMarkup(config, layout, palette, commandWidth, clipId)}
   <path d="M30 ${layout.contentDividerY}H${layout.width - 30}" class="line"/>
   ${workflowMarkup(config, layout, palette)}
-  <path d="M30 ${layout.footerDividerY}H${layout.width - 30}" class="line"/>
+  <g data-region="footer"><path d="M30 ${layout.footerDividerY}H${layout.width - 30}" class="line"/>
   <text x="30" y="${layout.footerY}" class="mono muted" font-size="${variant.viewport === "mobile" ? 10 : 11}" letter-spacing=".9"${textFitAttributes(config.hero.footerLeft, variant.viewport === "mobile" ? 10 : 11, layout.width / 2 - 48, { mono: true, letterSpacing: 0.9 })}>${escapeXml(config.hero.footerLeft)}</text>
-  <text x="${layout.width - 30}" y="${layout.footerY}" class="mono muted" font-size="${variant.viewport === "mobile" ? 9 : 11}" text-anchor="end" letter-spacing=".3"${textFitAttributes(config.hero.footerRight, variant.viewport === "mobile" ? 9 : 11, layout.width / 2 - 48, { mono: true, letterSpacing: 0.3 })}>${escapeXml(config.hero.footerRight)}</text>
+  <text x="${layout.width - 30}" y="${layout.footerY}" class="mono muted" font-size="${variant.viewport === "mobile" ? 9 : 11}" text-anchor="end" letter-spacing=".3"${textFitAttributes(config.hero.footerRight, variant.viewport === "mobile" ? 9 : 11, layout.width / 2 - 48, { mono: true, letterSpacing: 0.3 })}>${escapeXml(config.hero.footerRight)}</text></g>
 </svg>
 `;
 }

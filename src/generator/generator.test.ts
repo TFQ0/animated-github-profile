@@ -42,6 +42,16 @@ function createV1Fixture() {
   });
 }
 
+function parseSvg(svg: string): XMLDocument {
+  return new DOMParser().parseFromString(svg, "image/svg+xml");
+}
+
+function numericAttribute(element: Element, name: string): number {
+  const value = Number(element.getAttribute(name));
+  expect(Number.isFinite(value), `${name} should be numeric`).toBe(true);
+  return value;
+}
+
 describe("profile artifact generation", () => {
   it("generates the complete deterministic profile bundle", () => {
     const config = cloneDefaultConfig();
@@ -118,24 +128,24 @@ describe("profile artifact generation", () => {
     expect(new DOMParser().parseFromString(svg, "image/svg+xml").querySelector("parsererror")).toBeNull();
   });
 
-  it("keeps workflow labels inside the content surface above one footer boundary", () => {
+  it("keeps the content surface and footer inside each viewport", () => {
     const config = cloneDefaultConfig();
 
-    const desktop = renderHeroSvg(config, {
-      viewport: "desktop",
-      theme: "dark",
-      motion: "static",
-    });
-    const mobile = renderHeroSvg(config, {
-      viewport: "mobile",
-      theme: "dark",
-      motion: "static",
-    });
+    for (const viewport of ["desktop", "mobile"] as const) {
+      const document = parseSvg(renderHeroSvg(config, { viewport, theme: "dark", motion: "static" }));
+      const root = document.documentElement;
+      const surface = document.querySelector('[data-region="surface"]')!;
+      const footer = document.querySelector('[data-region="footer"]')!;
+      const width = numericAttribute(root, "width");
+      const footerDivider = numericAttribute(root, "data-footer-divider");
 
-    expect(desktop).toContain('<rect x="1" y="64" width="1198" height="503" class="surface"/>');
-    expect(desktop).toContain('<path d="M30 567H1170" class="line"/>');
-    expect(mobile).toContain('<rect x="1" y="64" width="618" height="823" class="surface"/>');
-    expect(mobile).toContain('<path d="M30 887H590" class="line"/>');
+      expect(numericAttribute(surface, "x")).toBe(1);
+      expect(numericAttribute(surface, "y")).toBe(64);
+      expect(numericAttribute(surface, "width")).toBe(width - 2);
+      expect(numericAttribute(surface, "height")).toBe(footerDivider - 64);
+      expect(footer.querySelectorAll("path")).toHaveLength(1);
+      expect(footer.querySelectorAll("text")).toHaveLength(2);
+    }
   });
 
   it("keeps README asset references in sync with the generated files", () => {
@@ -327,12 +337,170 @@ describe("profile artifact generation", () => {
         motion: "static",
       });
       const signatureDocument = new DOMParser().parseFromString(signatureSvg, "image/svg+xml");
+      const identity = signatureDocument.querySelector('[data-region="identity"]')!;
+      const terminal = signatureDocument.querySelector('[data-region="terminal"]')!;
+      const workflow = signatureDocument.querySelector('[data-region="workflow"]')!;
       structuralSignatures.add(
-        `${preset.id}:${signatureDocument.documentElement.getAttribute("data-composition")}`,
+        [
+          identity.getAttribute("data-x"),
+          identity.getAttribute("data-y"),
+          identity.getAttribute("data-width"),
+          terminal.getAttribute("data-x"),
+          terminal.getAttribute("data-y"),
+          terminal.getAttribute("data-width"),
+          terminal.getAttribute("data-height"),
+          workflow.getAttribute("data-workflow-style"),
+        ].join(":"),
       );
     }
     expect(structuralSignatures.size).toBe(designPresets.length);
     expect(source).toEqual(original);
+  });
+
+  it("keeps boxed workflow items inside every custom layout", () => {
+    const compositions = ["split", "stacked", "terminal-focus", "hud-grid", "bento", "poster"] as const;
+    const densities = ["compact", "comfortable", "spacious"] as const;
+    const contentOrders = ["identity-first", "terminal-first"] as const;
+    const workflowStyles = ["cards", "command-chain"] as const;
+    const viewports = ["desktop", "mobile"] as const;
+
+    for (const composition of compositions) {
+      for (const density of densities) {
+        for (const contentOrder of contentOrders) {
+          for (const style of workflowStyles) {
+            for (const viewport of viewports) {
+              for (let stepCount = 2; stepCount <= 6; stepCount += 1) {
+                const config = cloneDefaultConfig();
+                config.layout = { ...config.layout, composition, density, contentOrder };
+                config.hero.workflow = {
+                  style,
+                  steps: Array.from({ length: stepCount }, (_, index) => ({
+                    id: `workflow-${index + 1}`,
+                    label: `STEP ${index + 1}`,
+                    shape: "auto" as const,
+                  })),
+                };
+                const valid = profileConfigSchema.parse(config);
+                const document = parseSvg(renderHeroSvg(valid, { viewport, theme: "dark", motion: "static" }));
+                const root = document.documentElement;
+                const width = numericAttribute(root, "width");
+                const footerDivider = numericAttribute(root, "data-footer-divider");
+                const items = [...document.querySelectorAll('[data-workflow-width]')];
+
+                expect(items, `${composition}/${density}/${contentOrder}/${style}/${viewport}/${stepCount}`).toHaveLength(stepCount);
+                for (const item of items) {
+                  const x = numericAttribute(item, "data-workflow-x");
+                  const y = numericAttribute(item, "data-workflow-y");
+                  const itemWidth = numericAttribute(item, "data-workflow-width");
+                  const itemHeight = numericAttribute(item, "data-workflow-height");
+                  expect(x).toBeGreaterThanOrEqual(30);
+                  expect(x + itemWidth).toBeLessThanOrEqual(width - 30);
+                  expect(y).toBeGreaterThanOrEqual(64);
+                  expect(y + itemHeight).toBeLessThanOrEqual(footerDivider - 6);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, 15_000);
+
+  it("preserves safe terminal spacing across custom combinations", () => {
+    const compositions = ["split", "stacked", "terminal-focus", "hud-grid", "bento", "poster"] as const;
+    const densities = ["compact", "comfortable", "spacious"] as const;
+    const contentOrders = ["identity-first", "terminal-first"] as const;
+    const terminalStyles = ["window", "panel", "minimal"] as const;
+    const viewports = ["desktop", "mobile"] as const;
+
+    for (const composition of compositions) {
+      for (const density of densities) {
+        for (const contentOrder of contentOrders) {
+          for (const terminalStyle of terminalStyles) {
+            for (const viewport of viewports) {
+              const config = cloneDefaultConfig();
+              config.layout = { ...config.layout, composition, density, contentOrder, terminalStyle };
+              const document = parseSvg(renderHeroSvg(config, { viewport, theme: "dark", motion: "static" }));
+              const root = document.documentElement;
+              const terminal = document.querySelector('[data-region="terminal"]')!;
+              const width = numericAttribute(root, "width");
+              const height = numericAttribute(root, "height");
+              const x = numericAttribute(terminal, "data-x");
+              const y = numericAttribute(terminal, "data-y");
+              const terminalWidth = numericAttribute(terminal, "data-width");
+              const terminalHeight = numericAttribute(terminal, "data-height");
+              const commandBaseline = numericAttribute(terminal, "data-command-baseline");
+              const rowStart = numericAttribute(terminal, "data-row-start");
+              const footerDivider = numericAttribute(terminal, "data-footer-divider");
+              const lastRow = document.querySelector('[data-terminal-row="3"]')!;
+              const lastRail = numericAttribute(lastRow, "data-rail-y");
+
+              expect(x).toBeGreaterThanOrEqual(0);
+              expect(y).toBeGreaterThanOrEqual(64);
+              expect(x + terminalWidth).toBeLessThanOrEqual(width);
+              expect(y + terminalHeight).toBeLessThanOrEqual(height);
+              expect(rowStart - commandBaseline).toBeGreaterThanOrEqual(22);
+              expect(lastRail).toBeLessThanOrEqual(footerDivider - 5);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it("keeps content order consistent and stacked content separated", () => {
+    const horizontalCompositions = ["split", "terminal-focus", "hud-grid", "bento"] as const;
+
+    for (const composition of horizontalCompositions) {
+      for (const contentOrder of ["identity-first", "terminal-first"] as const) {
+        const config = cloneDefaultConfig();
+        config.layout = { ...config.layout, composition, contentOrder };
+        const document = parseSvg(renderHeroSvg(config, { viewport: "desktop", theme: "dark", motion: "static" }));
+        const identity = document.querySelector('[data-region="identity"]')!;
+        const terminal = document.querySelector('[data-region="terminal"]')!;
+        const identityX = numericAttribute(identity, "data-x");
+        const terminalX = numericAttribute(terminal, "data-x");
+
+        if (contentOrder === "identity-first") expect(identityX).toBeLessThan(terminalX);
+        else expect(terminalX).toBeLessThan(identityX);
+      }
+    }
+
+    for (const composition of ["split", "stacked", "terminal-focus", "hud-grid", "bento", "poster"] as const) {
+      for (const contentOrder of ["identity-first", "terminal-first"] as const) {
+        const config = cloneDefaultConfig();
+        config.layout = { ...config.layout, composition, contentOrder };
+        const document = parseSvg(renderHeroSvg(config, { viewport: "mobile", theme: "dark", motion: "static" }));
+        const identityY = numericAttribute(document.querySelector('[data-region="identity"]')!, "data-y");
+        const terminalY = numericAttribute(document.querySelector('[data-region="terminal"]')!, "data-y");
+
+        if (contentOrder === "identity-first") expect(identityY).toBeLessThan(terminalY);
+        else expect(terminalY).toBeLessThan(identityY);
+      }
+    }
+
+    for (const density of ["compact", "comfortable", "spacious"] as const) {
+      const config = cloneDefaultConfig();
+      config.layout = { ...config.layout, composition: "stacked", contentOrder: "identity-first", density };
+      const document = parseSvg(renderHeroSvg(config, { viewport: "desktop", theme: "dark", motion: "static" }));
+      const identityBottom = numericAttribute(document.querySelector('[data-region="identity"]')!, "data-bottom");
+      const terminalTop = numericAttribute(document.querySelector('[data-region="terminal"]')!, "data-y");
+      expect(identityBottom).toBeLessThan(terminalTop);
+    }
+  });
+
+  it("keeps HUD separators in desktop gaps and removes them from vertical mobile layouts", () => {
+    for (const contentOrder of ["identity-first", "terminal-first"] as const) {
+      const config = cloneDefaultConfig();
+      config.layout = { ...config.layout, composition: "hud-grid", contentOrder };
+      const desktop = parseSvg(renderHeroSvg(config, { viewport: "desktop", theme: "dark", motion: "static" }));
+      const separator = desktop.querySelector('[data-hud-separator="true"]')!;
+      const coordinates = separator.getAttribute("d")!.match(/M([\d.]+) 88L([\d.]+)/)!;
+      expect(Math.abs(Number(coordinates[2]) - Number(coordinates[1]))).toBeLessThan(100);
+
+      const mobile = parseSvg(renderHeroSvg(config, { viewport: "mobile", theme: "dark", motion: "static" }));
+      expect(mobile.querySelector('[data-hud-separator="true"]')).toBeNull();
+    }
   });
 
   it("validates and safely renders structured remote media without bundling it", () => {

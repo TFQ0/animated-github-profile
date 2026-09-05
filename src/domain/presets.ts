@@ -133,7 +133,7 @@ export const designPresets: readonly DesignPreset[] = [
     },
     layout: {
       composition: "terminal-focus",
-      contentOrder: "identity-first",
+      contentOrder: "terminal-first",
       density: "comfortable",
       shapeSystem: "pixel",
       pattern: "grid",
