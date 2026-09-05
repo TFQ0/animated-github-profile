@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { cloneDefaultConfig } from "./domain/profile";
 
 describe("Profile Studio workspace", () => {
   let root: Root;
@@ -89,13 +90,13 @@ describe("Profile Studio workspace", () => {
       "Signal Poster",
       "Custom Canvas",
     ]);
-    expect(container.querySelector(".generated-hero")?.textContent).toContain("TALAL ALQAHS");
+    expect(container.querySelector(".generated-hero")?.textContent).toContain("FICTIONAL SAMPLE");
 
     const bento = presetCards.find((card) => card.textContent?.includes("Bento Grid"))!;
     act(() => bento.click());
 
     expect(bento.getAttribute("aria-pressed")).toBe("true");
-    expect(container.querySelector(".generated-hero")?.textContent).toContain("TALAL ALQAHS");
+    expect(container.querySelector(".generated-hero")?.textContent).toContain("FICTIONAL SAMPLE");
     expect(container.querySelector(".generated-hero svg")?.getAttribute("data-composition")).toBe(
       "bento",
     );
@@ -133,5 +134,34 @@ describe("Profile Studio workspace", () => {
         (button) => button.textContent?.trim() === "Add step",
       ),
     ).toBe(false);
+  });
+
+  it("bundles a clearly fictional sample with reserved example links", () => {
+    const sample = cloneDefaultConfig();
+
+    expect(sample.identity).toMatchObject({
+      username: "sample-builder",
+      displayName: "Sample Builder",
+      eyebrow: "FICTIONAL SAMPLE",
+    });
+    expect(sample.about.paragraphs.join(" ")).toContain("fictional profile");
+    expect([...sample.repositories, ...sample.links].every(({ url }) => {
+      return new URL(url).hostname === "example.com";
+    })).toBe(true);
+  });
+
+  it("preserves an unrelated saved profile draft", () => {
+    act(() => root.unmount());
+    const saved = cloneDefaultConfig();
+    saved.identity.username = "saved-user";
+    saved.identity.displayName = "Saved User";
+    saved.identity.eyebrow = "SAVED DRAFT";
+    saved.identity.brandMark = "SAVE";
+    localStorage.setItem("animated-profile-studio:config:v3", JSON.stringify(saved));
+
+    root = createRoot(container);
+    act(() => root.render(<App />));
+
+    expect(container.querySelector(".generated-hero")?.textContent).toContain("SAVED DRAFT");
   });
 });

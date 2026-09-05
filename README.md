@@ -2,7 +2,7 @@
 
 A browser-based editor for creating a personal GitHub profile README from one reusable configuration. Customize the design, fonts, text, animated terminal, featured repositories, images, GIFs, links, section order, colors, and motion settings, then export a ready-to-upload ZIP.
 
-The built-in TFQ0 design remains the canonical example, but users no longer need to edit eight SVG files by hand.
+The built-in sample is intentionally fictional and fully replaceable, so no maintainer profile, repository, or personal identity is used as the starting point.
 
 After GitHub Pages is enabled, the hosted Studio is available at:
 
@@ -43,7 +43,7 @@ The editor does not accept arbitrary raw CSS, SVG markup, SVG paths, or remote f
 ## Use the studio
 
 1. Open the app and choose one of the seven templates, then adjust its constrained layout controls if desired.
-2. Select **Start a blank profile**, customize the TFQ0 example, or explicitly load another complete content sample.
+2. Select **Start a blank profile** or customize the clearly labeled fictional sample.
 3. Work through Profile, Hero, workflow steps and shapes, Projects, Skills, Links, Media, Colors, and Sections.
 4. Check the desktop/mobile, dark/light, and animated/static previews. Responsive compositions can adapt between desktop and mobile rather than preserving identical coordinates.
 5. Resolve validation errors and review any design warnings in Export.
@@ -129,10 +129,6 @@ src/
 - Custom Markdown blocks raw HTML and neutralizes non-HTTPS link destinations in generated output.
 
 Users must own or hold permission for any media they add. Attribution alone does not grant permission, and adding media does not imply affiliation with or endorsement by its creator or rights holder. See [User content and third-party media notice](./USER_CONTENT_NOTICE.md).
-
-## Legacy reference
-
-The original hand-authored TFQ0 SVGs, screenshots, GIF, and `preview.html` remain in `assets/` and `preview/` as visual references. They are not used by the Studio build. New custom profiles should be generated through the editor so all responsive, theme, and reduced-motion variants stay synchronized.
 
 ## License
 

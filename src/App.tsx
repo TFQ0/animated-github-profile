@@ -10,7 +10,6 @@ import {
   cloneDefaultConfig,
   createId,
   createBlankConfig,
-  defaultProfileConfig,
   parseProfileConfig,
   profileConfigSchema,
   type FontId,
@@ -85,6 +84,8 @@ const legacyStorageKeys = [
   "animated-profile-studio:config:v1",
 ] as const;
 const githubCachePrefix = "animated-profile-studio:github:";
+// Recognizes the content bundled before this neutral sample without shipping it as readable data.
+const retiredBundledContentFingerprint = 3_805_495_506;
 const allSections: SectionKey[] = [
   "about",
   "repositories",
@@ -220,11 +221,89 @@ function moveItem<T>(items: T[], index: number, direction: -1 | 1): T[] {
   return next;
 }
 
+function profileContentFingerprint(config: ProfileConfig): number {
+  const value = JSON.stringify([
+    [
+      config.identity.username,
+      config.identity.displayName,
+      config.identity.brandMark,
+      config.identity.headerLabel,
+      config.identity.profileLabel,
+      config.identity.eyebrow,
+      config.identity.primaryRole,
+      config.identity.secondaryRole,
+    ],
+    [
+      config.hero.headline,
+      config.hero.command,
+      config.hero.checks,
+      config.hero.completionMessage,
+      config.hero.idleMessage,
+      [
+        config.hero.labels.host,
+        config.hero.labels.demoRun,
+        config.hero.labels.queued,
+        config.hero.labels.running,
+        config.hero.labels.passed,
+        config.hero.labels.workflow,
+      ],
+      config.hero.workflow.steps.map((step) => [step.id, step.label]),
+      config.hero.footerLeft,
+      config.hero.footerRight,
+    ],
+    [config.about.heading, config.about.paragraphs, config.about.processLine],
+    config.repositories.map((repository) => [
+      repository.id,
+      repository.name,
+      repository.url,
+      repository.description,
+      repository.focus,
+    ]),
+    config.skillGroups.map((group) => [group.id, group.label, group.items]),
+    config.links.map((link) => [link.id, link.label, link.url]),
+    [config.custom.heading, config.custom.markdown],
+    [
+      config.sectionHeadings.repositories,
+      config.sectionHeadings.skills,
+      config.sectionHeadings.links,
+      config.sectionHeadings.media,
+    ],
+    [config.footer.emphasis, config.footer.line],
+  ]);
+  let hash = 2_166_136_261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16_777_619);
+  }
+  return hash >>> 0;
+}
+
 function loadInitialConfig(): ProfileConfig {
   for (const key of [storageKey, ...legacyStorageKeys]) {
     try {
       const saved = localStorage.getItem(key);
-      if (saved) return parseProfileConfig(JSON.parse(saved));
+      if (saved) {
+        const parsed = parseProfileConfig(JSON.parse(saved));
+        if (profileContentFingerprint(parsed) === retiredBundledContentFingerprint) {
+          const replacement = cloneDefaultConfig();
+          replacement.template = parsed.template;
+          replacement.layout = parsed.layout;
+          replacement.appearance = parsed.appearance;
+          replacement.accessibility = parsed.accessibility;
+          replacement.media = parsed.media;
+          replacement.sections = parsed.sections;
+          replacement.hero.animationDuration = parsed.hero.animationDuration;
+          replacement.hero.workflow.style = parsed.hero.workflow.style;
+          replacement.hero.workflow.steps = replacement.hero.workflow.steps.map((step, index) => ({
+            ...step,
+            shape: parsed.hero.workflow.steps[index]?.shape ?? step.shape,
+          }));
+          localStorage.removeItem(key);
+          return replacement;
+        }
+
+        return parsed;
+      }
     } catch {
       // Try the legacy draft before falling back to the built-in example.
     }
@@ -365,7 +444,7 @@ export default function App() {
   const [replayKey, setReplayKey] = useState(0);
   const [notice, setNotice] = useState<Notice>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [repoQuery, setRepoQuery] = useState(config.identity.username);
+  const [repoQuery, setRepoQuery] = useState("");
   const [repoSearch, setRepoSearch] = useState("");
   const [importedRepositories, setImportedRepositories] = useState<ImportedRepository[]>([]);
   const [isImportingRepositories, setIsImportingRepositories] = useState(false);
@@ -705,18 +784,18 @@ export default function App() {
   }
 
   function resetProfile() {
-    if (!window.confirm("Reset every field to the TFQ0 example?")) return;
+    if (!window.confirm("Reset every field to the fictional sample profile?")) return;
     setConfig(cloneDefaultConfig());
-    setRepoQuery(defaultProfileConfig.identity.username);
+    setRepoQuery("");
     setImportedRepositories([]);
-    setNotice({ tone: "info", message: "The TFQ0 example has been restored." });
+    setNotice({ tone: "info", message: "The fictional sample profile has been restored." });
   }
 
   function startBlankProfile() {
     if (!window.confirm("Replace the current draft with a clean starter profile?")) return;
     const blank = createBlankConfig();
     setConfig(blank);
-    setRepoQuery(blank.identity.username);
+    setRepoQuery("");
     setImportedRepositories([]);
     setNotice({ tone: "info", message: "A clean starter profile is ready." });
   }
@@ -1156,7 +1235,7 @@ export default function App() {
                 <EditorCard title="Choose your starting point" eyebrow="Content samples">
                   <div className="starter-actions">
                     <button className="button button-secondary" type="button" onClick={startBlankProfile}>Start a blank profile</button>
-                    <button className="button button-secondary" type="button" onClick={resetProfile}>Load the TFQ0 sample</button>
+                    <button className="button button-secondary" type="button" onClick={resetProfile}>Load fictional sample</button>
                   </div>
                   <p className="privacy-note"><span aria-hidden="true">●</span> Applying a design changes visuals only. Loading a sample replaces all current content after confirmation.</p>
                 </EditorCard>
