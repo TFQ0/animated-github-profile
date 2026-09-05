@@ -80,18 +80,30 @@ const allSections: SectionKey[] = [
   "custom",
 ];
 
-const panels: Array<{ key: PanelKey; label: string; short: string }> = [
-  { key: "design", label: "Design", short: "01" },
-  { key: "profile", label: "Profile", short: "02" },
-  { key: "hero", label: "Hero", short: "03" },
-  { key: "projects", label: "Projects", short: "04" },
-  { key: "skills", label: "Skills", short: "05" },
-  { key: "links", label: "Links", short: "06" },
-  { key: "media", label: "Media", short: "07" },
-  { key: "style", label: "Colors", short: "08" },
-  { key: "sections", label: "Sections", short: "09" },
-  { key: "export", label: "Export", short: "10" },
+const panels: Array<{
+  key: PanelKey;
+  label: string;
+  short: string;
+  description: string;
+  group: "start" | "content" | "finish";
+}> = [
+  { key: "design", label: "Design", short: "01", description: "Template and type", group: "start" },
+  { key: "profile", label: "Profile", short: "02", description: "Identity and about", group: "content" },
+  { key: "hero", label: "Hero", short: "03", description: "Header and motion", group: "content" },
+  { key: "projects", label: "Projects", short: "04", description: "Featured repositories", group: "content" },
+  { key: "skills", label: "Skills", short: "05", description: "Tools and strengths", group: "content" },
+  { key: "links", label: "Links", short: "06", description: "Social destinations", group: "content" },
+  { key: "media", label: "Media", short: "07", description: "Images and GIFs", group: "content" },
+  { key: "style", label: "Colors", short: "08", description: "Palette and corners", group: "finish" },
+  { key: "sections", label: "Sections", short: "09", description: "Order and wording", group: "finish" },
+  { key: "export", label: "Export", short: "10", description: "Review and download", group: "finish" },
 ];
+
+const panelGroups = [
+  { key: "start", label: "Start" },
+  { key: "content", label: "Content" },
+  { key: "finish", label: "Finish" },
+] as const;
 
 const fontOptions: ReadonlyArray<{ value: FontId; label: string }> = [
   { value: "modern", label: "Modern sans" },
@@ -269,6 +281,9 @@ export default function App() {
   const [showForks, setShowForks] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const configFileInput = useRef<HTMLInputElement>(null);
+  const editorPane = useRef<HTMLElement>(null);
+  const editorScroll = useRef<HTMLDivElement>(null);
+  const stepRail = useRef<HTMLElement>(null);
   const importAbortController = useRef<AbortController | null>(null);
   const configSnapshot = useRef(config);
   configSnapshot.current = config;
@@ -291,6 +306,33 @@ export default function App() {
     [config.sections],
   );
   const variant: HeroVariant = { theme, viewport, motion };
+
+  const activePanelIndex = panels.findIndex((panel) => panel.key === activePanel);
+  const activePanelDetails = panels[activePanelIndex] ?? panels[0]!;
+
+  function selectPanel(panel: PanelKey) {
+    setActivePanel(panel);
+    window.requestAnimationFrame(() => {
+      editorScroll.current?.scrollTo({ top: 0 });
+      stepRail.current
+        ?.querySelector<HTMLElement>(`#step-${panel}`)
+        ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+      if (window.matchMedia("(max-width: 1050px)").matches) {
+        const switchHeight = document.querySelector<HTMLElement>(".mobile-view-switch")?.offsetHeight ?? 0;
+        const railHeight = stepRail.current?.offsetHeight ?? 0;
+        const editorTop = editorPane.current?.offsetTop ?? 0;
+        window.scrollTo({ top: Math.max(0, editorTop - switchHeight - railHeight) });
+      }
+    });
+  }
+
+  function selectMobilePane(pane: "edit" | "preview") {
+    setMobilePane(pane);
+    window.requestAnimationFrame(() => {
+      if (window.matchMedia("(max-width: 1050px)").matches) window.scrollTo({ top: 0 });
+      document.getElementById(pane === "edit" ? "editor-heading" : "preview-heading")?.focus();
+    });
+  }
 
   useEffect(() => {
     if (!validation.success) return;
@@ -334,7 +376,7 @@ export default function App() {
           configSnapshot.current = nextConfig;
           setConfig(nextConfig);
           setRepoQuery(nextConfig.identity.username);
-          setActivePanel("profile");
+          selectPanel("profile");
           setNotice({ tone: "success", message: "An agent staged a valid profile configuration." });
         },
         onRegistrationError: (error) => {
@@ -461,7 +503,7 @@ export default function App() {
   async function downloadBundle() {
     if (!validation.success) {
       setNotice({ tone: "error", message: firstValidationMessage() });
-      setActivePanel("export");
+      selectPanel("export");
       return;
     }
     setIsExporting(true);
@@ -641,6 +683,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <header className="app-header">
+        <h1 className="visually-hidden">Animated GitHub Profile Studio</h1>
         <div className="brand-lockup">
           <span className="brand-mark" aria-hidden="true">›_</span>
           <span>
@@ -648,14 +691,15 @@ export default function App() {
             <small>Animated GitHub profiles</small>
           </span>
         </div>
-        <div className="header-status" aria-live="polite">
+        <div className="header-status" role="status" aria-live="polite" aria-atomic="true">
           <span className={`status-dot ${validation.success ? "status-good" : "status-error"}`} />
-          {validation.success ? "Valid · auto-saves locally" : "Needs attention · last valid draft kept"}
+          <span>{validation.success ? "Ready · saved locally" : "Review needed · valid draft kept"}</span>
         </div>
         <div className="header-actions">
           <input
             ref={configFileInput}
-            className="visually-hidden"
+            hidden
+            tabIndex={-1}
             type="file"
             accept="application/json,.json"
             onChange={importConfig}
@@ -672,52 +716,76 @@ export default function App() {
         </div>
       </header>
 
-      <div className="mobile-view-switch" aria-label="Workspace view">
-        <button type="button" aria-pressed={mobilePane === "edit"} onClick={() => setMobilePane("edit")}>Edit</button>
-        <button type="button" aria-pressed={mobilePane === "preview"} onClick={() => setMobilePane("preview")}>Preview</button>
+      <div className="mobile-view-switch" role="group" aria-label="Workspace view">
+        <button type="button" aria-controls="editor-pane" aria-pressed={mobilePane === "edit"} onClick={() => selectMobilePane("edit")}>Edit</button>
+        <button type="button" aria-controls="preview-pane" aria-pressed={mobilePane === "preview"} onClick={() => selectMobilePane("preview")}>Preview</button>
       </div>
 
       <main className={`studio-workspace mobile-pane-${mobilePane}`}>
-        <aside className="editor-pane" aria-label="Profile settings">
+        <nav ref={stepRail} className="step-rail" aria-label="Profile builder steps">
+          <div className="step-rail-heading">
+            <span>Build flow</span>
+            <strong>{String(activePanelIndex + 1).padStart(2, "0")} / {panels.length}</strong>
+          </div>
+          <div className="step-groups">
+            {panelGroups.map((group) => (
+              <div className="step-group" key={group.key}>
+                <span className="step-group-label">{group.label}</span>
+                {panels.filter((panel) => panel.group === group.key).map((panel) => {
+                  const active = activePanel === panel.key;
+                  return (
+                    <button
+                      key={panel.key}
+                      type="button"
+                      id={`step-${panel.key}`}
+                      aria-controls={`panel-${panel.key}`}
+                      aria-current={active ? "step" : undefined}
+                      className={active ? "step-button step-button-active" : "step-button"}
+                      onClick={() => selectPanel(panel.key)}
+                    >
+                      <span className="step-index" aria-hidden="true">{panel.short}</span>
+                      <span className="step-copy">
+                        <strong>{panel.label}</strong>
+                        <small>{panel.description}</small>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          <div className={validation.success ? "step-summary step-summary-good" : "step-summary step-summary-error"}>
+            <span aria-hidden="true">{validation.success ? "✓" : "!"}</span>
+            <div>
+              <strong>{validation.success ? "Ready to export" : "Needs attention"}</strong>
+              <small>{warnings.length ? `${warnings.length} review note${warnings.length === 1 ? "" : "s"}` : "No review notes"}</small>
+            </div>
+          </div>
+        </nav>
+
+        <aside ref={editorPane} id="editor-pane" className="editor-pane" aria-labelledby="editor-heading">
           <div className="editor-intro">
             <div>
-              <span className="workspace-eyebrow">CONFIG / V2</span>
-              <h1>Make it yours.</h1>
+              <span className="workspace-eyebrow">STEP {activePanelDetails.short} / {panels.length}</span>
+              <h2 id="editor-heading" tabIndex={-1}>{activePanelDetails.label}</h2>
+              <p>{activePanelDetails.description}</p>
             </div>
-            <span className="editor-current-step">{panels.find((panel) => panel.key === activePanel)?.short} / 10</span>
+            <span className="editor-current-step" aria-hidden="true">{activePanelDetails.short}</span>
           </div>
-          <nav className="panel-tabs" aria-label="Editor sections" role="tablist">
-            {panels.map((panel) => (
-              <button
-                key={panel.key}
-                type="button"
-                role="tab"
-                id={`tab-${panel.key}`}
-                aria-controls={`panel-${panel.key}`}
-                aria-selected={activePanel === panel.key}
-                className={activePanel === panel.key ? "panel-tab panel-tab-active" : "panel-tab"}
-                onClick={() => setActivePanel(panel.key)}
-              >
-                <span>{panel.short}</span>
-                {panel.label}
-              </button>
-            ))}
-          </nav>
 
-          <div className="editor-scroll" role="tabpanel" id={`panel-${activePanel}`} aria-labelledby={`tab-${activePanel}`}>
+          <div ref={editorScroll} className="editor-scroll" role="region" id={`panel-${activePanel}`} aria-labelledby="editor-heading">
             {activePanel === "design" ? (
               <>
                 <EditorCard title="Choose a design" eyebrow="Ready-made visual templates">
                   <p className="card-intro">Apply a complete visual system without replacing your profile text, projects, links, or media.</p>
-                  <div className="preset-grid" role="radiogroup" aria-label="Profile design">
+                  <div className="preset-grid" role="group" aria-label="Profile designs">
                     {designPresets.map((preset) => {
                       const selected = config.template.id === preset.id;
                       return (
                         <button
                           className={selected ? "preset-card preset-card-selected" : "preset-card"}
                           type="button"
-                          role="radio"
-                          aria-checked={selected}
+                          aria-pressed={selected}
                           key={preset.id}
                           onClick={() => {
                             setConfig((current) => applyDesignPreset(current, preset.id));
@@ -1092,18 +1160,46 @@ export default function App() {
               </>
             ) : null}
           </div>
+
+          <div className="editor-footer" aria-label="Step navigation">
+            <button
+              className="editor-step-button"
+              type="button"
+              disabled={activePanelIndex === 0}
+              onClick={() => selectPanel(panels[activePanelIndex - 1]!.key)}
+            >
+              <span aria-hidden="true">←</span>
+              <span><small>Previous</small><strong>{panels[activePanelIndex - 1]?.label ?? "Start"}</strong></span>
+            </button>
+            <button
+              className="editor-step-button editor-step-button-next"
+              type="button"
+              disabled={activePanelIndex === panels.length - 1}
+              onClick={() => selectPanel(panels[activePanelIndex + 1]!.key)}
+            >
+              <span><small>Next</small><strong>{panels[activePanelIndex + 1]?.label ?? "Complete"}</strong></span>
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
         </aside>
 
-        <section className="preview-pane" aria-label="Live profile preview">
+        <section id="preview-pane" className="preview-pane" aria-labelledby="preview-heading">
           <div className="preview-toolbar">
-            <div className="preview-title"><span>LIVE OUTPUT</span><strong>{viewport} / {theme} / {motion}</strong></div>
+            <div className="preview-title">
+              <h2 id="preview-heading" tabIndex={-1}>Live preview</h2>
+              <strong>{viewport} / {theme} / {motion}</strong>
+            </div>
             <div className="preview-controls">
-              <div className="segmented" aria-label="Preview theme">{(["dark", "light"] as const).map((value) => <button key={value} type="button" aria-pressed={theme === value} onClick={() => setTheme(value)}>{value}</button>)}</div>
-              <div className="segmented" aria-label="Preview viewport">{(["desktop", "mobile"] as const).map((value) => <button key={value} type="button" aria-pressed={viewport === value} onClick={() => setViewport(value)}>{value}</button>)}</div>
-              <div className="segmented" aria-label="Preview motion">{(["animated", "static"] as const).map((value) => <button key={value} type="button" aria-pressed={motion === value} onClick={() => { setMotion(value); setPaused(false); }}>{value}</button>)}</div>
-              <button className="toolbar-button toolbar-button-download" type="button" onClick={downloadCurrentHero} aria-label={`Download current ${theme} ${viewport} ${motion} SVG image`}>Download SVG</button>
-              {motion === "animated" ? <button className="toolbar-button" type="button" onClick={() => setPaused((value) => !value)}>{paused ? "Resume" : "Pause"}</button> : null}
-              {motion === "animated" ? <button className="toolbar-button" type="button" onClick={() => { setReplayKey((value) => value + 1); setPaused(false); }}>Replay</button> : null}
+              <div className="preview-options">
+                <label className="preview-select"><span>Theme</span><select value={theme} onChange={(event) => setTheme(event.target.value as HeroTheme)}><option value="dark">Dark</option><option value="light">Light</option></select></label>
+                <label className="preview-select"><span>Size</span><select value={viewport} onChange={(event) => setViewport(event.target.value as HeroViewport)}><option value="desktop">Desktop</option><option value="mobile">Mobile</option></select></label>
+                <label className="preview-select"><span>Motion</span><select value={motion} onChange={(event) => { setMotion(event.target.value as HeroMotion); setPaused(false); }}><option value="animated">Animated</option><option value="static">Static</option></select></label>
+              </div>
+              <div className="preview-actions">
+                <button className="toolbar-button toolbar-button-download" type="button" onClick={downloadCurrentHero} aria-label={`Download current ${theme} ${viewport} ${motion} SVG image`}>Save SVG</button>
+                {motion === "animated" ? <button className="toolbar-button" type="button" onClick={() => setPaused((value) => !value)}>{paused ? "Resume" : "Pause"}</button> : null}
+                {motion === "animated" ? <button className="toolbar-button" type="button" onClick={() => { setReplayKey((value) => value + 1); setPaused(false); }}>Replay</button> : null}
+              </div>
             </div>
           </div>
           <div className={`preview-stage preview-stage-${viewport}`}>
@@ -1113,7 +1209,7 @@ export default function App() {
         </section>
       </main>
 
-      {notice ? <div className={`toast toast-${notice.tone}`} role="status">{notice.message}</div> : null}
+      {notice ? <div className={`toast toast-${notice.tone}`} role={notice.tone === "error" ? "alert" : "status"}>{notice.message}</div> : null}
     </div>
   );
 }
