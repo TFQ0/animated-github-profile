@@ -87,14 +87,117 @@ const linkSchema = z
   })
   .strict();
 
-export const templateIdSchema = z.enum([
+const legacyTemplateIdSchema = z.enum([
   "quality-control",
   "classic-terminal",
   "retro-arcade",
   "anime-hud",
 ]);
 
+export const templateIdSchema = z.enum([
+  "quality-control",
+  "classic-terminal",
+  "retro-arcade",
+  "anime-hud",
+  "bento-grid",
+  "signal-poster",
+  "custom-canvas",
+]);
+
 export const fontIdSchema = z.enum(["modern", "mono", "classic", "rounded"]);
+
+export const compositionSchema = z.enum([
+  "split",
+  "stacked",
+  "terminal-focus",
+  "hud-grid",
+  "bento",
+  "poster",
+]);
+
+export const contentOrderSchema = z.enum(["identity-first", "terminal-first"]);
+export const densitySchema = z.enum(["compact", "comfortable", "spacious"]);
+export const shapeSystemSchema = z.enum(["rounded", "terminal", "pixel", "hud"]);
+export const patternSchema = z.enum(["dots", "grid", "scanlines", "circuit", "none"]);
+export const terminalStyleSchema = z.enum(["window", "panel", "minimal"]);
+export const textAlignSchema = z.enum(["start", "center"]);
+export const workflowStyleSchema = z.enum([
+  "timeline",
+  "command-chain",
+  "arcade-track",
+  "telemetry",
+  "cards",
+  "minimal",
+]);
+export const workflowShapeSchema = z.enum([
+  "auto",
+  "circle",
+  "square",
+  "diamond",
+  "hexagon",
+]);
+export const decorationShapeSchema = z.enum([
+  "circle",
+  "square",
+  "diamond",
+  "cross",
+  "line",
+]);
+
+const workflowStepSchema = z
+  .object({
+    id: itemId,
+    label: z.string().trim().min(1).max(12),
+    shape: workflowShapeSchema,
+  })
+  .strict();
+
+const workflowSchema = z
+  .object({
+    style: workflowStyleSchema,
+    steps: z
+      .array(workflowStepSchema)
+      .min(2)
+      .max(6)
+      .refine(
+        (steps) => new Set(steps.map((step) => step.id.toLowerCase())).size === steps.length,
+        "Workflow step IDs must be unique.",
+      ),
+  })
+  .strict();
+
+const decorationSchema = z
+  .object({
+    id: itemId,
+    shape: decorationShapeSchema,
+    x: z.number().int().min(4).max(96),
+    y: z.number().int().min(8).max(92),
+    size: z.number().int().min(8).max(120),
+    rotation: z.number().int().min(-180).max(180),
+    tone: z.enum(["accent", "accent-soft", "line", "muted"]),
+    style: z.enum(["fill", "outline"]),
+    opacity: z.number().min(0.15).max(1),
+  })
+  .strict();
+
+const layoutSchema = z
+  .object({
+    composition: compositionSchema,
+    contentOrder: contentOrderSchema,
+    density: densitySchema,
+    shapeSystem: shapeSystemSchema,
+    pattern: patternSchema,
+    terminalStyle: terminalStyleSchema,
+    textAlign: textAlignSchema,
+    decorations: z
+      .array(decorationSchema)
+      .max(8)
+      .refine(
+        (items) => new Set(items.map((item) => item.id.toLowerCase())).size === items.length,
+        "Decoration IDs must be unique.",
+      ),
+  })
+  .strict();
 
 const mediaAttributionSchema = z
   .object({
@@ -288,12 +391,12 @@ export const profileConfigV1Schema = profileConfigV1ObjectSchema
     }
   });
 
-export const profileConfigSchema = profileConfigV1ObjectSchema
+const profileConfigV2ObjectSchema = profileConfigV1ObjectSchema
   .extend({
     schemaVersion: z.literal(2),
     template: z
       .object({
-        id: templateIdSchema,
+        id: legacyTemplateIdSchema,
         version: z.literal(1),
       })
       .strict(),
@@ -313,6 +416,43 @@ export const profileConfigSchema = profileConfigV1ObjectSchema
         fontId: fontIdSchema,
       })
       .strict(),
+  })
+  .strict();
+
+export const profileConfigV2Schema = profileConfigV2ObjectSchema
+  .superRefine((config, context) => {
+    for (const key of ["repositories", "skillGroups", "links", "media"] as const) {
+      const items = key === "media" ? config.media : config[key];
+      const seen = new Set<string>();
+      items.forEach((item, index) => {
+        const normalized = item.id.toLowerCase();
+        if (seen.has(normalized)) {
+          context.addIssue({
+            code: "custom",
+            path: [key, index, "id"],
+            message: "IDs must be unique within this collection.",
+          });
+        }
+        seen.add(normalized);
+      });
+    }
+  });
+
+export const profileConfigSchema = profileConfigV2ObjectSchema
+  .extend({
+    schemaVersion: z.literal(3),
+    template: z
+      .object({
+        id: templateIdSchema,
+        version: z.literal(1),
+      })
+      .strict(),
+    hero: profileConfigV1ObjectSchema.shape.hero
+      .extend({
+        workflow: workflowSchema,
+      })
+      .strict(),
+    layout: layoutSchema,
   })
   .strict()
   .superRefine((config, context) => {
@@ -335,20 +475,43 @@ export const profileConfigSchema = profileConfigV1ObjectSchema
 
 export type ProfileConfig = z.infer<typeof profileConfigSchema>;
 export type ProfileConfigV1 = z.infer<typeof profileConfigV1Schema>;
+export type ProfileConfigV2 = z.infer<typeof profileConfigV2Schema>;
 export type SectionKey = z.infer<typeof sectionKeySchema>;
 export type TemplateId = z.infer<typeof templateIdSchema>;
 export type FontId = z.infer<typeof fontIdSchema>;
+export type Composition = z.infer<typeof compositionSchema>;
+export type ContentOrder = z.infer<typeof contentOrderSchema>;
+export type Density = z.infer<typeof densitySchema>;
+export type ShapeSystem = z.infer<typeof shapeSystemSchema>;
+export type Pattern = z.infer<typeof patternSchema>;
+export type TerminalStyle = z.infer<typeof terminalStyleSchema>;
+export type TextAlign = z.infer<typeof textAlignSchema>;
+export type WorkflowStyle = z.infer<typeof workflowStyleSchema>;
+export type WorkflowShape = z.infer<typeof workflowShapeSchema>;
+export type DecorationShape = z.infer<typeof decorationShapeSchema>;
 export type Repository = ProfileConfig["repositories"][number];
 export type SkillGroup = ProfileConfig["skillGroups"][number];
 export type ProfileLink = ProfileConfig["links"][number];
 export type MediaItem = ProfileConfig["media"][number];
+export type WorkflowStep = ProfileConfig["hero"]["workflow"]["steps"][number];
+export type Decoration = ProfileConfig["layout"]["decorations"][number];
 export type Palette = ProfileConfig["appearance"]["dark"];
 
 export const defaultProfileConfig: ProfileConfig = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   template: {
     id: "quality-control",
     version: 1,
+  },
+  layout: {
+    composition: "split",
+    contentOrder: "identity-first",
+    density: "comfortable",
+    shapeSystem: "rounded",
+    pattern: "dots",
+    terminalStyle: "window",
+    textAlign: "start",
+    decorations: [],
   },
   identity: {
     username: "TFQ0",
@@ -374,7 +537,15 @@ export const defaultProfileConfig: ProfileConfig = {
       passed: "PASS",
       workflow: "THE WORKFLOW",
     },
-    workflow: ["BUILD", "TEST", "LEARN", "REPEAT"],
+    workflow: {
+      style: "timeline",
+      steps: [
+        { id: "workflow-1", label: "BUILD", shape: "auto" },
+        { id: "workflow-2", label: "TEST", shape: "auto" },
+        { id: "workflow-3", label: "LEARN", shape: "auto" },
+        { id: "workflow-4", label: "REPEAT", shape: "auto" },
+      ],
+    },
     footerLeft: "LESS NOISE. MORE SIGNAL.",
     footerRight: "NO MONOPOLY. YES TO OPEN SOURCE.",
     animationDuration: 16,
@@ -543,6 +714,8 @@ export function parseProfileConfig(value: unknown): ProfileConfig {
       case 1:
         return migrateProfileConfigV1(profileConfigV1Schema.parse(value));
       case 2:
+        return migrateProfileConfigV2ToV3(profileConfigV2Schema.parse(value));
+      case 3:
         return profileConfigSchema.parse(value);
       default:
         throw new Error(`Unsupported profile configuration version: ${String(version)}.`);
@@ -552,8 +725,12 @@ export function parseProfileConfig(value: unknown): ProfileConfig {
 }
 
 export function migrateProfileConfigV1(config: ProfileConfigV1): ProfileConfig {
+  return migrateProfileConfigV2ToV3(migrateProfileConfigV1ToV2(config));
+}
+
+export function migrateProfileConfigV1ToV2(config: ProfileConfigV1): ProfileConfigV2 {
   const legacy = structuredClone(config);
-  return profileConfigSchema.parse({
+  return profileConfigV2Schema.parse({
     ...legacy,
     schemaVersion: 2,
     media: [],
@@ -564,6 +741,42 @@ export function migrateProfileConfigV1(config: ProfileConfigV1): ProfileConfig {
     appearance: {
       ...legacy.appearance,
       fontId: "modern",
+    },
+  });
+}
+
+const legacyPatternByTemplate: Record<ProfileConfigV2["template"]["id"], Pattern> = {
+  "quality-control": "dots",
+  "classic-terminal": "scanlines",
+  "retro-arcade": "grid",
+  "anime-hud": "circuit",
+};
+
+export function migrateProfileConfigV2ToV3(config: ProfileConfigV2): ProfileConfig {
+  const legacy = structuredClone(config);
+  return profileConfigSchema.parse({
+    ...legacy,
+    schemaVersion: 3,
+    hero: {
+      ...legacy.hero,
+      workflow: {
+        style: "timeline",
+        steps: legacy.hero.workflow.map((label, index) => ({
+          id: `workflow-${index + 1}`,
+          label,
+          shape: "auto",
+        })),
+      },
+    },
+    layout: {
+      composition: "split",
+      contentOrder: "identity-first",
+      density: "comfortable",
+      shapeSystem: "rounded",
+      pattern: legacyPatternByTemplate[legacy.template.id],
+      terminalStyle: "window",
+      textAlign: "start",
+      decorations: [],
     },
   });
 }

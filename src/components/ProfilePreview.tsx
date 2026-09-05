@@ -223,7 +223,9 @@ export function ProfilePreview({ config, variant, paused, replayKey }: PreviewPr
     "--readme-border": variant.theme === "dark" ? "#30363d" : "#d0d7de",
     "--readme-code": variant.theme === "dark" ? "#161b22" : "#eff2f5",
     "--readme-accent": palette.accent,
-    "--profile-radius": `${config.appearance.cornerRadius}px`,
+    "--profile-radius": config.layout.shapeSystem === "rounded"
+      ? `${config.appearance.cornerRadius}px`
+      : "0px",
   } as CSSProperties;
   const navSections = config.sections.filter((section) => {
     if (section === "repositories") return config.repositories.length > 0;

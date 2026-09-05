@@ -4,21 +4,30 @@ A browser-based editor for creating a personal GitHub profile README from one re
 
 The built-in TFQ0 design remains the canonical example, but users no longer need to edit eight SVG files by hand.
 
-## Design and media customization
+## Templates, layout, and media customization
 
-Configuration v2 adds three focused customization systems:
+Configuration v3 provides seven templates: Quality Control, Classic Terminal, Retro Arcade, Anime HUD, Bento Grid, Signal Poster, and Custom Canvas. The templates use generic, original interface elements and include no franchise characters, logos, or copied artwork.
 
-- Four ready-made visual presets: Quality Control, Classic Terminal, Retro Arcade, and Anime HUD. They use generic interface elements and include no franchise characters, logos, or copied artwork.
-- Curated font presets that map to controlled, SVG-safe font stacks rather than accepting arbitrary CSS.
-- Structured remote media entries for images and GIFs referenced by HTTPS URL, with accessibility and attribution information kept alongside each entry.
+The templates are more than palette swaps: they provide structurally distinct compositions that adapt independently to desktop and mobile output. Custom Canvas uses the same validated rendering system and offers constrained layout controls rather than unrestricted canvas editing.
 
-Applying a visual preset changes presentation without replacing a user's profile text, repositories, links, or media. Loading a complete sample is a separate, confirmed action. Valid v1 configurations migrate automatically when imported or restored from browser storage.
+The customization contract includes:
+
+- Responsive composition, alignment, spacing, and placement choices within safe layout bounds.
+- Two to six workflow steps, with an allowlisted safe shape selected for each step.
+- Decorative shapes described through a bounded SVG-safe DSL. The renderer converts validated shape data into SVG; users cannot insert arbitrary SVG elements or path commands.
+- Curated font presets that map to controlled, SVG-safe system font stacks.
+- Structured remote media entries for images and GIFs referenced by HTTPS URL, with accessibility and attribution information kept alongside each entry. Media remains separate README content and is not inserted into the generated hero canvas.
+
+Applying a template changes its visual system and layout defaults without replacing the user's profile text, repositories, links, sections, or media. Loading a complete sample is a separate, confirmed action that replaces profile content. Valid v1 and v2 configurations migrate automatically when imported or restored from browser storage.
+
+The editor does not accept arbitrary raw CSS, SVG markup, SVG paths, or remote fonts. Decorative elements are code-generated from allowlisted primitives and bounded numeric values.
 
 ## What it includes
 
 - Live desktop and mobile preview in dark and light themes.
 - Animated and reduced-motion/static SVG variants.
-- Design, font, profile, hero, project, skill, link, structured media, palette, section, Markdown, and footer editing.
+- Seven structurally distinct responsive templates plus constrained custom layout controls.
+- Design, font, profile, hero, workflow-step shape, decorative shape, project, skill, link, structured media, palette, section, Markdown, and footer editing.
 - Optional public GitHub repository import with no login or token.
 - Local autosave of the last valid configuration.
 - Versioned `profile.config.json` import/export.
@@ -29,13 +38,14 @@ Applying a visual preset changes presentation without replacing a user's profile
 
 ## Use the studio
 
-1. Open the app, choose a design, then select **Start a blank profile** or customize the TFQ0 example.
-2. Work through Profile, Hero, Projects, Skills, Links, Media, Colors, and Sections.
-3. Check the desktop/mobile, dark/light, and animated/static previews.
-4. Resolve validation errors and review any design warnings in Export.
-5. To keep only the image, choose its desktop/mobile, dark/light, and animated/static options, then select **Download SVG**.
-6. To publish the complete profile, download the ZIP instead.
-7. Upload its `README.md` and `assets/` directory to the public GitHub repository whose name exactly matches your username.
+1. Open the app and choose one of the seven templates, then adjust its constrained layout controls if desired.
+2. Select **Start a blank profile**, customize the TFQ0 example, or explicitly load another complete content sample.
+3. Work through Profile, Hero, workflow steps and shapes, Projects, Skills, Links, Media, Colors, and Sections.
+4. Check the desktop/mobile, dark/light, and animated/static previews. Responsive compositions can adapt between desktop and mobile rather than preserving identical coordinates.
+5. Resolve validation errors and review any design warnings in Export.
+6. To keep only the image, choose its desktop/mobile, dark/light, and animated/static options, then select **Download SVG**.
+7. To publish the complete profile, download the ZIP instead.
+8. Upload its `README.md` and `assets/` directory to the public GitHub repository whose name exactly matches your username.
 
 Keep the exported `profile.config.json`; importing it later restores an editable profile instead of requiring manual SVG changes.
 
@@ -62,7 +72,8 @@ The production site is written to `dist/`. Vite uses relative asset URLs, so the
 
 ```text
 src/
-├── domain/profile.ts       # strict versioned config and template metadata
+├── domain/profile.ts       # strict v3 config plus v1/v2 migration
+├── domain/presets.ts       # trusted template defaults and visual presets
 ├── generator/
 │   ├── svg.ts              # pure eight-variant SVG renderer
 │   ├── readme.ts           # GitHub README renderer
@@ -74,7 +85,7 @@ src/
 └── App.tsx                 # editor state and workflows
 ```
 
-`ProfileConfig` is the single source of truth. The visible preview, README source, SVG files, saved config, and ZIP are all produced from the same validated object. Imported GitHub data becomes an editable snapshot; it is never a hidden dependency of later exports.
+`ProfileConfig` is the single source of truth. The visible preview, README source, SVG files, saved config, and ZIP are all produced from the same validated object. Template, responsive layout, workflow-shape, and decorative-shape values are resolved through trusted renderer registries. Imported GitHub data becomes an editable snapshot; it is never a hidden dependency of later exports.
 
 ## Privacy and output safety
 
@@ -82,6 +93,7 @@ src/
 - Drafts and the short-lived public repository cache stay in browser storage.
 - Only public repository metadata is fetched directly from GitHub's public API.
 - Generated SVGs contain no scripts, event handlers, remote fonts, external images, tracking, or live CI claims.
+- Layout and decorative SVG output is generated only from validated, bounded controls and allowlisted shape primitives; raw CSS, SVG markup, and path data are not accepted.
 - User-selected media is referenced by HTTPS URL in the README rather than copied into the ZIP or embedded in the generated hero SVG.
 - Previewing or viewing remote media may send an ordinary request to its third-party host. Remote content can disappear or change independently of the Studio.
 - Static fallbacks are generated for visitors who prefer reduced motion.

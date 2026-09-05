@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   cloneDefaultConfig,
   parseProfileConfig,
+  profileConfigV1Schema,
+  profileConfigV2Schema,
   profileConfigSchema,
 } from "../domain/profile";
 import { applyDesignPreset, designPresets } from "../domain/presets";
@@ -10,6 +12,35 @@ import { generateArtifacts, generateHeroArtifact, generateZip } from "./artifact
 import { cleanText, escapeTableCell, sanitizeMarkdown } from "./escape";
 import { renderReadme } from "./readme";
 import { heroVariants, renderHeroSvg } from "./svg";
+
+function createV2Fixture() {
+  const current = cloneDefaultConfig();
+  const { layout: _layout, ...withoutLayout } = current;
+  return profileConfigV2Schema.parse({
+    ...withoutLayout,
+    schemaVersion: 2,
+    template: { id: "quality-control", version: 1 },
+    hero: {
+      ...current.hero,
+      workflow: current.hero.workflow.steps.map((step) => step.label),
+    },
+  });
+}
+
+function createV1Fixture() {
+  const current = createV2Fixture();
+  const { media: _media, ...withoutMedia } = current;
+  const { fontId: _fontId, ...appearance } = current.appearance;
+  const { media: _mediaHeading, ...sectionHeadings } = current.sectionHeadings;
+  return profileConfigV1Schema.parse({
+    ...withoutMedia,
+    schemaVersion: 1,
+    template: { id: "quality-control", version: 1 },
+    sections: current.sections.filter((section) => section !== "media"),
+    sectionHeadings,
+    appearance,
+  });
+}
 
 describe("profile artifact generation", () => {
   it("generates the complete deterministic profile bundle", () => {
@@ -195,26 +226,46 @@ describe("profile artifact generation", () => {
         links: [{ id: "broken", label: "Broken", url: "not a url" }],
       }).success,
     ).toBe(false);
-    expect(() => parseProfileConfig({ schemaVersion: 3 })).toThrow(
-      "Unsupported profile configuration version: 3",
+    expect(() => parseProfileConfig({ schemaVersion: 4 })).toThrow(
+      "Unsupported profile configuration version: 4",
     );
 
-    const earlierV1 = JSON.parse(JSON.stringify(config)) as Record<string, unknown>;
-    earlierV1.schemaVersion = 1;
+    const earlierV1 = JSON.parse(JSON.stringify(createV1Fixture())) as Record<string, unknown>;
     delete earlierV1.template;
     delete earlierV1.accessibility;
-    delete earlierV1.media;
     delete (earlierV1.hero as Record<string, unknown>).labels;
-    delete (earlierV1.appearance as Record<string, unknown>).fontId;
-    delete (earlierV1.sectionHeadings as Record<string, unknown>).media;
     const migrated = parseProfileConfig(earlierV1);
-    expect(migrated.schemaVersion).toBe(2);
+    expect(migrated.schemaVersion).toBe(3);
     expect(migrated.template).toEqual({ id: "quality-control", version: 1 });
     expect(migrated.hero.labels.passed).toBe("PASS");
     expect(migrated.accessibility.language).toBe("en");
     expect(migrated.appearance.fontId).toBe("modern");
     expect(migrated.media).toEqual([]);
     expect(migrated.sections).not.toContain("media");
+
+    const v2 = createV2Fixture();
+    const migratedV2 = parseProfileConfig(JSON.parse(JSON.stringify(v2)));
+    const migratedV2Again = parseProfileConfig(JSON.parse(JSON.stringify(v2)));
+    expect(migratedV2).toEqual(migratedV2Again);
+    expect(migratedV2.schemaVersion).toBe(3);
+    expect(migratedV2.layout).toEqual({
+      composition: "split",
+      contentOrder: "identity-first",
+      density: "comfortable",
+      shapeSystem: "rounded",
+      pattern: "dots",
+      terminalStyle: "window",
+      textAlign: "start",
+      decorations: [],
+    });
+    expect(migratedV2.hero.workflow).toEqual({
+      style: "timeline",
+      steps: v2.hero.workflow.map((label, index) => ({
+        id: `workflow-${index + 1}`,
+        label,
+        shape: "auto",
+      })),
+    });
   });
 
   it("applies every trusted design without replacing personal content", () => {
@@ -222,24 +273,65 @@ describe("profile artifact generation", () => {
     source.identity.displayName = "Personal Name";
     source.custom = { heading: "Personal notes", markdown: "Keep this content." };
     const original = structuredClone(source);
+    const originalWorkflowSteps = structuredClone(source.hero.workflow.steps);
+    const expectedPresetNames = [
+      "Quality Control",
+      "Classic Terminal",
+      "Retro Arcade",
+      "Anime HUD",
+      "Bento Grid",
+      "Signal Poster",
+      "Custom Canvas",
+    ];
+    const structuralSignatures = new Set<string>();
 
+    expect(designPresets.map((preset) => preset.name)).toEqual(expectedPresetNames);
     expect(new Set(designPresets.map((preset) => preset.id)).size).toBe(designPresets.length);
     for (const preset of designPresets) {
       const applied = applyDesignPreset(source, preset.id);
       expect(applied).not.toBe(source);
       expect(applied.identity).toEqual(source.identity);
+      expect(applied.hero.headline).toEqual(source.hero.headline);
+      expect(applied.hero.checks).toEqual(source.hero.checks);
+      expect(applied.hero.workflow.steps).toEqual(originalWorkflowSteps);
+      expect(applied.hero.workflow.steps.map(({ id, label }) => ({ id, label }))).toEqual(
+        originalWorkflowSteps.map(({ id, label }) => ({ id, label })),
+      );
+      expect(applied.about).toEqual(source.about);
       expect(applied.repositories).toEqual(source.repositories);
+      expect(applied.skillGroups).toEqual(source.skillGroups);
+      expect(applied.links).toEqual(source.links);
+      expect(applied.media).toEqual(source.media);
+      expect(applied.sections).toEqual(source.sections);
       expect(applied.custom).toEqual(source.custom);
+      expect(applied.accessibility).toEqual(source.accessibility);
+      expect(applied.footer).toEqual(source.footer);
       expect(applied.template.id).toBe(preset.id);
+      expect(applied.layout).toEqual(preset.layout);
+      expect(applied.hero.workflow.style).toBe(preset.workflowStyle);
       expect(profileConfigSchema.safeParse(applied).success).toBe(true);
 
       for (const variant of heroVariants) {
         const svg = renderHeroSvg(applied, variant);
-        expect(new DOMParser().parseFromString(svg, "image/svg+xml").querySelector("parsererror")).toBeNull();
+        const document = new DOMParser().parseFromString(svg, "image/svg+xml");
+        expect(document.querySelector("parsererror")).toBeNull();
+        expect(document.documentElement.getAttribute("data-composition")).toBe(
+          preset.layout.composition,
+        );
         expect(svg).not.toMatch(/<script|<foreignObject|\son[a-z]+=/i);
         expect(svg).not.toMatch(/(?:href|src)=["']https?:/i);
       }
+      const signatureSvg = renderHeroSvg(applied, {
+        viewport: "desktop",
+        theme: "dark",
+        motion: "static",
+      });
+      const signatureDocument = new DOMParser().parseFromString(signatureSvg, "image/svg+xml");
+      structuralSignatures.add(
+        `${preset.id}:${signatureDocument.documentElement.getAttribute("data-composition")}`,
+      );
     }
+    expect(structuralSignatures.size).toBe(designPresets.length);
     expect(source).toEqual(original);
   });
 
@@ -301,6 +393,63 @@ describe("profile artifact generation", () => {
     expect(profileConfigSchema.safeParse({ ...config, media: [{ ...media, alt: "" }] }).success).toBe(false);
     expect(profileConfigSchema.safeParse({ ...config, appearance: { ...config.appearance, fontId: "url(https://evil.example/font)" } }).success).toBe(false);
     expect(profileConfigSchema.safeParse({ ...config, media: [media, { ...media, id: "MEDIA-ONE" }] }).success).toBe(false);
+
+    expect(
+      profileConfigSchema.safeParse({
+        ...config,
+        layout: { ...config.layout, composition: "freeform" },
+      }).success,
+    ).toBe(false);
+
+    const decoration = {
+      id: "safe-shape",
+      shape: "circle" as const,
+      x: 50,
+      y: 50,
+      size: 32,
+      rotation: 0,
+      tone: "accent" as const,
+      style: "outline" as const,
+      opacity: 0.5,
+    };
+    for (const invalidPatch of [
+      { x: 3 },
+      { x: 97 },
+      { y: 7 },
+      { y: 93 },
+      { size: 7 },
+      { size: 121 },
+      { rotation: -181 },
+      { rotation: 181 },
+      { opacity: 0.14 },
+      { opacity: 1.01 },
+    ]) {
+      expect(
+        profileConfigSchema.safeParse({
+          ...config,
+          layout: {
+            ...config.layout,
+            decorations: [{ ...decoration, ...invalidPatch }],
+          },
+        }).success,
+        JSON.stringify(invalidPatch),
+      ).toBe(false);
+    }
+
+    const duplicateWorkflowSteps = structuredClone(config.hero.workflow.steps);
+    duplicateWorkflowSteps[1] = {
+      ...duplicateWorkflowSteps[1]!,
+      id: duplicateWorkflowSteps[0]!.id.toUpperCase(),
+    };
+    expect(
+      profileConfigSchema.safeParse({
+        ...config,
+        hero: {
+          ...config.hero,
+          workflow: { ...config.hero.workflow, steps: duplicateWorkflowSteps },
+        },
+      }).success,
+    ).toBe(false);
   });
 
   it("emits stable targets for every generated navigation link", () => {

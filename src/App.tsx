@@ -22,7 +22,11 @@ import {
   type SectionKey,
   type SkillGroup,
 } from "./domain/profile";
-import { applyDesignPreset, designPresets } from "./domain/presets";
+import {
+  applyDesignPreset,
+  designPresets,
+  isDesignPresetActive,
+} from "./domain/presets";
 import {
   downloadBlob,
   downloadText,
@@ -68,8 +72,18 @@ type PanelKey =
 
 type Notice = { tone: "success" | "error" | "info"; message: string } | null;
 
-const storageKey = "animated-profile-studio:config:v2";
-const legacyStorageKey = "animated-profile-studio:config:v1";
+type DesignSnapshot = {
+  template: ProfileConfig["template"];
+  appearance: ProfileConfig["appearance"];
+  layout: ProfileConfig["layout"];
+  workflowStyle: ProfileConfig["hero"]["workflow"]["style"];
+};
+
+const storageKey = "animated-profile-studio:config:v3";
+const legacyStorageKeys = [
+  "animated-profile-studio:config:v2",
+  "animated-profile-studio:config:v1",
+] as const;
 const githubCachePrefix = "animated-profile-studio:github:";
 const allSections: SectionKey[] = [
   "about",
@@ -87,7 +101,7 @@ const panels: Array<{
   description: string;
   group: "start" | "content" | "finish";
 }> = [
-  { key: "design", label: "Design", short: "01", description: "Template and type", group: "start" },
+  { key: "design", label: "Design", short: "01", description: "Templates, layout, and shapes", group: "start" },
   { key: "profile", label: "Profile", short: "02", description: "Identity and about", group: "content" },
   { key: "hero", label: "Hero", short: "03", description: "Header and motion", group: "content" },
   { key: "projects", label: "Projects", short: "04", description: "Featured repositories", group: "content" },
@@ -112,6 +126,84 @@ const fontOptions: ReadonlyArray<{ value: FontId; label: string }> = [
   { value: "rounded", label: "Rounded display" },
 ];
 
+const compositionOptions: ReadonlyArray<{ value: ProfileConfig["layout"]["composition"]; label: string }> = [
+  { value: "split", label: "Split dashboard" },
+  { value: "stacked", label: "Centered console" },
+  { value: "terminal-focus", label: "Terminal scoreboard" },
+  { value: "hud-grid", label: "Diagonal HUD" },
+  { value: "bento", label: "Bento cards" },
+  { value: "poster", label: "Signal poster" },
+];
+
+const contentOrderOptions: ReadonlyArray<{ value: ProfileConfig["layout"]["contentOrder"]; label: string }> = [
+  { value: "identity-first", label: "Identity first" },
+  { value: "terminal-first", label: "Terminal first" },
+];
+
+const densityOptions: ReadonlyArray<{ value: ProfileConfig["layout"]["density"]; label: string }> = [
+  { value: "compact", label: "Compact" },
+  { value: "comfortable", label: "Comfortable" },
+  { value: "spacious", label: "Spacious" },
+];
+
+const shapeSystemOptions: ReadonlyArray<{ value: ProfileConfig["layout"]["shapeSystem"]; label: string }> = [
+  { value: "rounded", label: "Rounded panels" },
+  { value: "terminal", label: "Terminal blocks" },
+  { value: "pixel", label: "Pixel corners" },
+  { value: "hud", label: "Chamfered HUD" },
+];
+
+const patternOptions: ReadonlyArray<{ value: ProfileConfig["layout"]["pattern"]; label: string }> = [
+  { value: "dots", label: "Dot matrix" },
+  { value: "grid", label: "Blueprint grid" },
+  { value: "scanlines", label: "Scanlines" },
+  { value: "circuit", label: "Circuit traces" },
+  { value: "none", label: "Clean surface" },
+];
+
+const terminalStyleOptions: ReadonlyArray<{ value: ProfileConfig["layout"]["terminalStyle"]; label: string }> = [
+  { value: "window", label: "Window chrome" },
+  { value: "panel", label: "System panel" },
+  { value: "minimal", label: "Minimal strip" },
+];
+
+const textAlignOptions: ReadonlyArray<{ value: ProfileConfig["layout"]["textAlign"]; label: string }> = [
+  { value: "start", label: "Start" },
+  { value: "center", label: "Center" },
+];
+
+const workflowStyleOptions: ReadonlyArray<{ value: ProfileConfig["hero"]["workflow"]["style"]; label: string }> = [
+  { value: "timeline", label: "Timeline" },
+  { value: "command-chain", label: "Command chain" },
+  { value: "arcade-track", label: "Arcade track" },
+  { value: "telemetry", label: "Telemetry rail" },
+  { value: "cards", label: "Step cards" },
+  { value: "minimal", label: "Minimal markers" },
+];
+
+const workflowShapeOptions: ReadonlyArray<{ value: ProfileConfig["hero"]["workflow"]["steps"][number]["shape"]; label: string }> = [
+  { value: "auto", label: "Follow design" },
+  { value: "circle", label: "Circle" },
+  { value: "square", label: "Square" },
+  { value: "diamond", label: "Diamond" },
+  { value: "hexagon", label: "Hexagon" },
+];
+
+const decorationShapeOptions: ReadonlyArray<{ value: ProfileConfig["layout"]["decorations"][number]["shape"]; label: string }> = [
+  { value: "circle", label: "Circle" },
+  { value: "square", label: "Square" },
+  { value: "diamond", label: "Diamond" },
+  { value: "cross", label: "Cross" },
+  { value: "line", label: "Line" },
+];
+
+const decorationToneOptions: ReadonlyArray<{ value: ProfileConfig["layout"]["decorations"][number]["tone"]; label: string }> = [
+  { value: "accent", label: "Accent" },
+  { value: "accent-soft", label: "Soft accent" },
+  { value: "line", label: "Line" },
+  { value: "muted", label: "Muted" },
+];
+
 function sectionLabel(section: SectionKey): string {
   if (section === "repositories") return "Featured projects";
   if (section === "media") return "Images & GIFs";
@@ -129,7 +221,7 @@ function moveItem<T>(items: T[], index: number, direction: -1 | 1): T[] {
 }
 
 function loadInitialConfig(): ProfileConfig {
-  for (const key of [storageKey, legacyStorageKey]) {
+  for (const key of [storageKey, ...legacyStorageKeys]) {
     try {
       const saved = localStorage.getItem(key);
       if (saved) return parseProfileConfig(JSON.parse(saved));
@@ -280,6 +372,7 @@ export default function App() {
   const [repositoryError, setRepositoryError] = useState("");
   const [showForks, setShowForks] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [designUndo, setDesignUndo] = useState<DesignSnapshot | null>(null);
   const configFileInput = useRef<HTMLInputElement>(null);
   const editorPane = useRef<HTMLElement>(null);
   const editorScroll = useRef<HTMLDivElement>(null);
@@ -477,6 +570,57 @@ export default function App() {
       appearance: {
         ...current.appearance,
         [themeKey]: { ...current.appearance[themeKey], [key]: value },
+      },
+    }));
+  }
+
+  function updateLayout<K extends keyof ProfileConfig["layout"]>(
+    key: K,
+    value: ProfileConfig["layout"][K],
+  ) {
+    setConfig((current) => ({
+      ...current,
+      layout: { ...current.layout, [key]: value },
+    }));
+  }
+
+  function updateDecoration(
+    index: number,
+    patch: Partial<ProfileConfig["layout"]["decorations"][number]>,
+  ) {
+    setConfig((current) => ({
+      ...current,
+      layout: {
+        ...current.layout,
+        decorations: current.layout.decorations.map((decoration, itemIndex) =>
+          itemIndex === index ? { ...decoration, ...patch } : decoration,
+        ),
+      },
+    }));
+  }
+
+  function addDecoration() {
+    if (config.layout.decorations.length >= 8) return;
+    const shapes = ["circle", "square", "diamond", "cross", "line"] as const;
+    const index = config.layout.decorations.length;
+    setConfig((current) => ({
+      ...current,
+      layout: {
+        ...current.layout,
+        decorations: [
+          ...current.layout.decorations,
+          {
+            id: createId("shape"),
+            shape: shapes[index % shapes.length]!,
+            x: Math.min(88, 18 + index * 13),
+            y: index % 2 === 0 ? 18 : 78,
+            size: 32,
+            rotation: index * 15,
+            tone: "accent",
+            style: "outline",
+            opacity: 0.55,
+          },
+        ],
       },
     }));
   }
@@ -776,11 +920,40 @@ export default function App() {
           <div ref={editorScroll} className="editor-scroll" role="region" id={`panel-${activePanel}`} aria-labelledby="editor-heading">
             {activePanel === "design" ? (
               <>
-                <EditorCard title="Choose a design" eyebrow="Ready-made visual templates">
-                  <p className="card-intro">Apply a complete visual system without replacing your profile text, projects, links, or media.</p>
+                <EditorCard
+                  title="Choose a design"
+                  eyebrow="Distinct responsive templates"
+                  actions={designUndo ? (
+                    <button
+                      className="text-button"
+                      type="button"
+                      onClick={() => {
+                        setConfig((current) => ({
+                          ...current,
+                          template: structuredClone(designUndo.template),
+                          appearance: structuredClone(designUndo.appearance),
+                          layout: structuredClone(designUndo.layout),
+                          hero: {
+                            ...current.hero,
+                            workflow: {
+                              ...current.hero.workflow,
+                              style: designUndo.workflowStyle,
+                            },
+                          },
+                        }));
+                        setDesignUndo(null);
+                        setNotice({ tone: "info", message: "The previous design was restored." });
+                      }}
+                    >
+                      Undo
+                    </button>
+                  ) : null}
+                >
+                  <p className="card-intro">Each template changes the composition, panels, workflow, type, and color system while preserving your profile content.</p>
                   <div className="preset-grid" role="group" aria-label="Profile designs">
                     {designPresets.map((preset) => {
-                      const selected = config.template.id === preset.id;
+                      const selected = isDesignPresetActive(config, preset.id);
+                      const customized = !selected && config.template.id === preset.id;
                       return (
                         <button
                           className={selected ? "preset-card preset-card-selected" : "preset-card"}
@@ -788,30 +961,185 @@ export default function App() {
                           aria-pressed={selected}
                           key={preset.id}
                           onClick={() => {
+                            setDesignUndo({
+                              template: structuredClone(config.template),
+                              appearance: structuredClone(config.appearance),
+                              layout: structuredClone(config.layout),
+                              workflowStyle: config.hero.workflow.style,
+                            });
                             setConfig((current) => applyDesignPreset(current, preset.id));
                             setNotice({ tone: "success", message: `${preset.name} design applied. Your content was preserved.` });
                           }}
                         >
                           <span
                             className="preset-preview"
+                            data-composition={preset.layout.composition}
+                            data-shape-system={preset.layout.shapeSystem}
                             style={{
-                              background: preset.appearance.dark.background,
-                              borderColor: preset.appearance.dark.line,
-                              color: preset.appearance.dark.accent,
-                              borderRadius: `${Math.min(14, preset.appearance.cornerRadius)}px`,
+                              "--preset-bg": preset.appearance.dark.background,
+                              "--preset-surface": preset.appearance.dark.surface,
+                              "--preset-terminal": preset.appearance.dark.terminal,
+                              "--preset-line": preset.appearance.dark.line,
+                              "--preset-accent": preset.appearance.dark.accent,
+                              "--preset-soft": preset.appearance.dark.accentSoft,
                             } as CSSProperties}
                             aria-hidden="true"
                           >
-                            <span style={{ background: preset.appearance.dark.accent }} />
-                            <span style={{ background: preset.appearance.dark.surface }} />
-                            <span style={{ background: preset.appearance.dark.accentSoft }} />
+                            <span className="preset-mini-copy"><i /><i /><i /></span>
+                            <span className="preset-mini-terminal"><i /><i /><i /></span>
+                            <span className="preset-mini-workflow"><i /><i /><i /><i /></span>
+                            <span className="preset-mini-shape" />
                           </span>
                           <span className="preset-copy"><strong>{preset.name}</strong><small>{preset.description}</small></span>
-                          <span className="preset-state">{selected ? "Active" : "Apply"}</span>
+                          <span className="preset-state">{selected ? "Active" : customized ? "Customized" : "Apply"}</span>
                         </button>
                       );
                     })}
                   </div>
+                </EditorCard>
+                <EditorCard title="Custom layout" eyebrow="Responsive composition controls">
+                  <p className="card-intro">Build your own arrangement from safe layout rules. Desktop and mobile coordinates are calculated automatically.</p>
+                  <div className="field-grid">
+                    <SelectField
+                      label="Composition"
+                      value={config.layout.composition}
+                      options={compositionOptions}
+                      onChange={(value) => updateLayout("composition", value as ProfileConfig["layout"]["composition"])}
+                    />
+                    <SelectField
+                      label="Content order"
+                      value={config.layout.contentOrder}
+                      options={contentOrderOptions}
+                      onChange={(value) => updateLayout("contentOrder", value as ProfileConfig["layout"]["contentOrder"])}
+                    />
+                    <SelectField
+                      label="Spacing"
+                      value={config.layout.density}
+                      options={densityOptions}
+                      onChange={(value) => updateLayout("density", value as ProfileConfig["layout"]["density"])}
+                    />
+                    <SelectField
+                      label="Panel shapes"
+                      value={config.layout.shapeSystem}
+                      options={shapeSystemOptions}
+                      onChange={(value) => updateLayout("shapeSystem", value as ProfileConfig["layout"]["shapeSystem"])}
+                    />
+                    <SelectField
+                      label="Background"
+                      value={config.layout.pattern}
+                      options={patternOptions}
+                      onChange={(value) => updateLayout("pattern", value as ProfileConfig["layout"]["pattern"])}
+                    />
+                    <SelectField
+                      label="Console treatment"
+                      value={config.layout.terminalStyle}
+                      options={terminalStyleOptions}
+                      onChange={(value) => updateLayout("terminalStyle", value as ProfileConfig["layout"]["terminalStyle"])}
+                    />
+                    <SelectField
+                      label="Text alignment"
+                      value={config.layout.textAlign}
+                      options={textAlignOptions}
+                      onChange={(value) => updateLayout("textAlign", value as ProfileConfig["layout"]["textAlign"])}
+                    />
+                    <SelectField
+                      label="Workflow design"
+                      value={config.hero.workflow.style}
+                      options={workflowStyleOptions}
+                      onChange={(value) => updateHero("workflow", {
+                        ...config.hero.workflow,
+                        style: value as ProfileConfig["hero"]["workflow"]["style"],
+                      })}
+                    />
+                  </div>
+                  <p className="privacy-note"><span aria-hidden="true">●</span> These controls never inject CSS or SVG markup; they select trusted responsive renderers.</p>
+                  <button
+                    className="button button-secondary button-full"
+                    type="button"
+                    onClick={() => {
+                      const preset = designPresets.find((candidate) => candidate.id === config.template.id);
+                      if (!preset) return;
+                      setConfig((current) => ({
+                        ...current,
+                        layout: structuredClone(preset.layout),
+                        hero: {
+                          ...current.hero,
+                          workflow: { ...current.hero.workflow, style: preset.workflowStyle },
+                        },
+                      }));
+                      setNotice({ tone: "info", message: `${preset.name} layout defaults restored.` });
+                    }}
+                  >
+                    Reset layout to template
+                  </button>
+                </EditorCard>
+                <EditorCard
+                  title="Decorative shapes"
+                  eyebrow="Optional visual layer"
+                  actions={<span className="card-count">{config.layout.decorations.length}/8</span>}
+                >
+                  <p className="card-intro">Add lightweight geometry behind the content. Percentage positions adapt to every exported size.</p>
+                  {config.layout.decorations.length === 0 ? (
+                    <div className="empty-state compact-empty-state"><strong>No extra shapes</strong><span>Your selected template still keeps its built-in details.</span></div>
+                  ) : null}
+                  <div className="decoration-list">
+                    {config.layout.decorations.map((decoration, index) => (
+                      <div className="decoration-item" key={decoration.id}>
+                        <div className="decoration-heading">
+                          <span className={`decoration-icon decoration-icon-${decoration.shape}`} aria-hidden="true" />
+                          <strong>Shape {index + 1}</strong>
+                        </div>
+                        <div className="field-grid">
+                          <SelectField
+                            label="Shape"
+                            value={decoration.shape}
+                            options={decorationShapeOptions}
+                            onChange={(value) => updateDecoration(index, { shape: value as typeof decoration.shape })}
+                          />
+                          <SelectField
+                            label="Color role"
+                            value={decoration.tone}
+                            options={decorationToneOptions}
+                            onChange={(value) => updateDecoration(index, { tone: value as typeof decoration.tone })}
+                          />
+                          <SelectField
+                            label="Treatment"
+                            value={decoration.style}
+                            options={[{ value: "outline", label: "Outline" }, { value: "fill", label: "Filled" }]}
+                            onChange={(value) => updateDecoration(index, { style: value as typeof decoration.style })}
+                          />
+                          <label className="field range-field">
+                            <span className="field-label-row"><span>Size</span><strong>{decoration.size}px</strong></span>
+                            <input type="range" min="8" max="120" step="4" value={decoration.size} onChange={(event) => updateDecoration(index, { size: Number(event.target.value) })} />
+                          </label>
+                          <label className="field range-field">
+                            <span className="field-label-row"><span>Horizontal</span><strong>{decoration.x}%</strong></span>
+                            <input type="range" min="4" max="96" value={decoration.x} onChange={(event) => updateDecoration(index, { x: Number(event.target.value) })} />
+                          </label>
+                          <label className="field range-field">
+                            <span className="field-label-row"><span>Vertical</span><strong>{decoration.y}%</strong></span>
+                            <input type="range" min="8" max="92" value={decoration.y} onChange={(event) => updateDecoration(index, { y: Number(event.target.value) })} />
+                          </label>
+                          <label className="field range-field">
+                            <span className="field-label-row"><span>Rotation</span><strong>{decoration.rotation}°</strong></span>
+                            <input type="range" min="-180" max="180" step="15" value={decoration.rotation} onChange={(event) => updateDecoration(index, { rotation: Number(event.target.value) })} />
+                          </label>
+                          <label className="field range-field">
+                            <span className="field-label-row"><span>Opacity</span><strong>{Math.round(decoration.opacity * 100)}%</strong></span>
+                            <input type="range" min="0.15" max="1" step="0.05" value={decoration.opacity} onChange={(event) => updateDecoration(index, { opacity: Number(event.target.value) })} />
+                          </label>
+                        </div>
+                        <ItemActions
+                          index={index}
+                          length={config.layout.decorations.length}
+                          onMove={(direction) => updateLayout("decorations", moveItem(config.layout.decorations, index, direction))}
+                          onRemove={() => updateLayout("decorations", config.layout.decorations.filter((_, itemIndex) => itemIndex !== index))}
+                          removeLabel="Remove shape"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  {config.layout.decorations.length < 8 ? <button className="button button-secondary button-full" type="button" onClick={addDecoration}>Add decorative shape</button> : null}
                 </EditorCard>
                 <EditorCard title="Typography" eyebrow="Safe system font stacks">
                   <SelectField
@@ -902,13 +1230,62 @@ export default function App() {
                   </div>
                 </EditorCard>
                 <EditorCard title="Workflow" eyebrow="Bottom sequence">
-                  {config.hero.workflow.map((step, index) => (
-                    <div className="compact-list-item" key={`workflow-${index}`}>
-                      <TextField label={`Step ${index + 1}`} value={step} maxLength={12} onChange={(value) => updateHero("workflow", config.hero.workflow.map((item, itemIndex) => itemIndex === index ? value : item))} />
-                      <ItemActions index={index} length={config.hero.workflow.length} onMove={(direction) => updateHero("workflow", moveItem(config.hero.workflow, index, direction))} onRemove={() => config.hero.workflow.length > 2 && updateHero("workflow", config.hero.workflow.filter((_, itemIndex) => itemIndex !== index))} />
+                  <div className="list-heading"><strong>Steps</strong><span>{config.hero.workflow.steps.length}/6</span></div>
+                  {config.hero.workflow.steps.map((step, index) => (
+                    <div className="compact-list-item" key={step.id}>
+                      <div className="field-grid">
+                        <TextField
+                          label={`Step ${index + 1}`}
+                          value={step.label}
+                          maxLength={12}
+                          onChange={(value) => updateHero("workflow", {
+                            ...config.hero.workflow,
+                            steps: config.hero.workflow.steps.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, label: value } : item,
+                            ),
+                          })}
+                        />
+                        <SelectField
+                          label="Marker shape"
+                          value={step.shape}
+                          options={workflowShapeOptions}
+                          onChange={(value) => updateHero("workflow", {
+                            ...config.hero.workflow,
+                            steps: config.hero.workflow.steps.map((item, itemIndex) =>
+                              itemIndex === index ? { ...item, shape: value as typeof step.shape } : item,
+                            ),
+                          })}
+                        />
+                      </div>
+                      <ItemActions
+                        index={index}
+                        length={config.hero.workflow.steps.length}
+                        onMove={(direction) => updateHero("workflow", {
+                          ...config.hero.workflow,
+                          steps: moveItem(config.hero.workflow.steps, index, direction),
+                        })}
+                        onRemove={() => config.hero.workflow.steps.length > 2 && updateHero("workflow", {
+                          ...config.hero.workflow,
+                          steps: config.hero.workflow.steps.filter((_, itemIndex) => itemIndex !== index),
+                        })}
+                      />
                     </div>
                   ))}
-                  {config.hero.workflow.length < 4 ? <button className="button button-secondary button-full" type="button" onClick={() => updateHero("workflow", [...config.hero.workflow, "NEXT"])}>Add step</button> : null}
+                  {config.hero.workflow.steps.length < 6 ? (
+                    <button
+                      className="button button-secondary button-full"
+                      type="button"
+                      onClick={() => updateHero("workflow", {
+                        ...config.hero.workflow,
+                        steps: [
+                          ...config.hero.workflow.steps,
+                          { id: createId("workflow"), label: "NEXT", shape: "auto" },
+                        ],
+                      })}
+                    >
+                      Add step
+                    </button>
+                  ) : null}
                   <label className="field range-field">
                     <span className="field-label-row"><span>Animation cycle</span><strong>{config.hero.animationDuration}s</strong></span>
                     <input type="range" min="8" max="30" step="1" value={config.hero.animationDuration} onChange={(event) => updateHero("animationDuration", Number(event.target.value))} />
@@ -1101,8 +1478,23 @@ export default function App() {
                   </EditorCard>
                 ))}
                 <EditorCard title="Shape" eyebrow="Header frame">
-                  <label className="field range-field"><span className="field-label-row"><span>Corner radius</span><strong>{config.appearance.cornerRadius}px</strong></span><input type="range" min="0" max="32" value={config.appearance.cornerRadius} onChange={(event) => setConfig((current) => ({ ...current, appearance: { ...current.appearance, cornerRadius: Number(event.target.value) } }))} /></label>
-                  <button className="button button-secondary button-full" type="button" onClick={() => setConfig((current) => applyDesignPreset(current, current.template.id))}>Restore current design styling</button>
+                  <label className="field range-field">
+                    <span className="field-label-row"><span>Corner radius</span><strong>{config.appearance.cornerRadius}px</strong></span>
+                    <input type="range" min="0" max="32" value={config.appearance.cornerRadius} disabled={config.layout.shapeSystem !== "rounded"} onChange={(event) => setConfig((current) => ({ ...current, appearance: { ...current.appearance, cornerRadius: Number(event.target.value) } }))} />
+                    <small>{config.layout.shapeSystem === "rounded" ? "Controls rounded frames and panels." : "Choose Rounded panels in Design to use this setting."}</small>
+                  </label>
+                  <button
+                    className="button button-secondary button-full"
+                    type="button"
+                    onClick={() => {
+                      const preset = designPresets.find((candidate) => candidate.id === config.template.id);
+                      if (!preset) return;
+                      setConfig((current) => ({ ...current, appearance: structuredClone(preset.appearance) }));
+                      setNotice({ tone: "info", message: `${preset.name} colors, type, and radius restored.` });
+                    }}
+                  >
+                    Restore template styling
+                  </button>
                 </EditorCard>
               </>
             ) : null}

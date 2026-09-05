@@ -74,4 +74,64 @@ describe("Profile Studio workspace", () => {
       "preview-heading",
     );
   });
+
+  it("applies seven content-safe presets, customizes layout, and grows a six-step workflow", () => {
+    const presetCards = Array.from(
+      container.querySelectorAll<HTMLButtonElement>(".preset-card"),
+    );
+    expect(presetCards).toHaveLength(7);
+    expect(presetCards.map((card) => card.querySelector("strong")?.textContent)).toEqual([
+      "Quality Control",
+      "Classic Terminal",
+      "Retro Arcade",
+      "Anime HUD",
+      "Bento Grid",
+      "Signal Poster",
+      "Custom Canvas",
+    ]);
+    expect(container.querySelector(".generated-hero")?.textContent).toContain("TALAL ALQAHS");
+
+    const bento = presetCards.find((card) => card.textContent?.includes("Bento Grid"))!;
+    act(() => bento.click());
+
+    expect(bento.getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector(".generated-hero")?.textContent).toContain("TALAL ALQAHS");
+    expect(container.querySelector(".generated-hero svg")?.getAttribute("data-composition")).toBe(
+      "bento",
+    );
+
+    const compositionLabel = Array.from(container.querySelectorAll("label")).find(
+      (label) => label.querySelector(".field-label-row > span")?.textContent === "Composition",
+    )!;
+    const composition = compositionLabel.querySelector("select")!;
+    act(() => {
+      composition.value = "poster";
+      composition.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(composition.value).toBe("poster");
+    expect(bento.getAttribute("aria-pressed")).toBe("false");
+    expect(container.querySelector(".generated-hero svg")?.getAttribute("data-composition")).toBe(
+      "poster",
+    );
+
+    act(() => container.querySelector<HTMLButtonElement>("#step-hero")!.click());
+    const workflowCard = Array.from(container.querySelectorAll<HTMLElement>(".editor-card")).find(
+      (card) => card.querySelector("h3")?.textContent === "Workflow",
+    )!;
+    for (let count = 4; count < 6; count += 1) {
+      const addStep = Array.from(workflowCard.querySelectorAll<HTMLButtonElement>("button")).find(
+        (button) => button.textContent?.trim() === "Add step",
+      )!;
+      act(() => addStep.click());
+    }
+
+    expect(workflowCard.querySelector(".list-heading span")?.textContent).toBe("6/6");
+    expect(workflowCard.querySelectorAll("input[maxlength='12']")).toHaveLength(6);
+    expect(
+      Array.from(workflowCard.querySelectorAll("button")).some(
+        (button) => button.textContent?.trim() === "Add step",
+      ),
+    ).toBe(false);
+  });
 });
