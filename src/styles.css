@@ -878,6 +878,12 @@ input[type="checkbox"] {
   border: 1px solid var(--line);
 }
 
+.toolbar-button-download {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .toolbar-button:hover,
 .segmented button:hover {
   color: var(--text);

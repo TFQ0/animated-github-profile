@@ -23,6 +23,8 @@ These checks cover TypeScript, strict config parsing, all eight SVG variants, re
 
 For a release, also inspect representative long content in desktop/mobile and dark/light previews. Design warnings are advisory because fixed SVG artwork cannot measure browser font metrics during generation.
 
+The preview toolbar can download its currently selected SVG by itself. Use the Export panel's complete ZIP when publishing the full README and all responsive theme variants.
+
 ## Production output
 
 `npm run build` creates the static site in `dist/`. The build uses relative asset paths and can be hosted at a domain root or a project subpath.

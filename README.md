@@ -12,6 +12,7 @@ The built-in TFQ0 design remains the canonical example, but users no longer need
 - Optional public GitHub repository import with no login or token.
 - Local autosave of the last valid configuration.
 - Versioned `profile.config.json` import/export.
+- One-click download of the currently previewed SVG variant without creating a ZIP.
 - Deterministic ZIP generation containing `README.md`, setup guidance, the saved config, and all eight SVG assets.
 - Strict runtime validation, HTTPS-only generated links, contextual XML/Markdown escaping, and self-contained SVG output.
 - WebMCP tools for agents to read or stage the same configuration used by the visible editor.
@@ -22,8 +23,9 @@ The built-in TFQ0 design remains the canonical example, but users no longer need
 2. Work through Profile, Hero, Projects, Skills, Links, Style, and Sections.
 3. Check the desktop/mobile, dark/light, and animated/static previews.
 4. Resolve validation errors and review any design warnings in Export.
-5. Download the complete ZIP.
-6. Upload its `README.md` and `assets/` directory to the public GitHub repository whose name exactly matches your username.
+5. To keep only the image, choose its desktop/mobile, dark/light, and animated/static options, then select **Download SVG**.
+6. To publish the complete profile, download the ZIP instead.
+7. Upload its `README.md` and `assets/` directory to the public GitHub repository whose name exactly matches your username.
 
 Keep the exported `profile.config.json`; importing it later restores an editable profile instead of requiring manual SVG changes.
 

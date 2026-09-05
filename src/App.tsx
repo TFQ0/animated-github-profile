@@ -23,6 +23,7 @@ import {
   downloadBlob,
   downloadText,
   generateArtifacts,
+  generateHeroArtifact,
   generateZip,
 } from "./generator/artifacts";
 import { renderReadme } from "./generator/readme";
@@ -396,6 +397,17 @@ export default function App() {
       "application/json",
     );
     setNotice({ tone: "success", message: "Configuration downloaded." });
+  }
+
+  function downloadCurrentHero() {
+    if (!validation.success) {
+      setNotice({ tone: "error", message: firstValidationMessage() });
+      return;
+    }
+    const artifact = generateHeroArtifact(validation.data, variant);
+    const filename = artifact.path.slice(artifact.path.lastIndexOf("/") + 1);
+    downloadText(artifact.content, filename, "image/svg+xml");
+    setNotice({ tone: "success", message: `${filename} downloaded.` });
   }
 
   async function importConfig(event: ChangeEvent<HTMLInputElement>) {
@@ -810,7 +822,7 @@ export default function App() {
                     <div><strong>{validation.success ? "Configuration is valid" : "Fix configuration errors"}</strong><p>{validation.success ? `${artifacts.length} files will be included. ${warnings.length ? `${warnings.length} design warning${warnings.length === 1 ? "" : "s"}.` : "No design warnings."}` : firstValidationMessage()}</p></div>
                   </div>
                   {warnings.length > 0 ? <ul className="warning-list">{warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul> : null}
-                  <div className="export-actions"><button className="button button-primary" type="button" onClick={downloadBundle} disabled={isExporting}>{isExporting ? "Building…" : "Download complete ZIP"}</button><button className="button button-secondary" type="button" onClick={copyReadme}>Copy README</button><button className="button button-secondary" type="button" onClick={downloadConfig}>Download config</button></div>
+                  <div className="export-actions"><button className="button button-primary" type="button" onClick={downloadBundle} disabled={isExporting}>{isExporting ? "Building…" : "Download complete ZIP"}</button><button className="button button-secondary" type="button" onClick={downloadCurrentHero}>Download current SVG</button><button className="button button-secondary" type="button" onClick={copyReadme}>Copy README</button><button className="button button-secondary" type="button" onClick={downloadConfig}>Download config</button></div>
                   <button className="button button-secondary button-full" type="button" onClick={() => configFileInput.current?.click()}>Import a saved config</button>
                 </EditorCard>
                 <EditorCard title="Generated files" eyebrow="Deterministic output">
@@ -831,6 +843,7 @@ export default function App() {
               <div className="segmented" aria-label="Preview theme">{(["dark", "light"] as const).map((value) => <button key={value} type="button" aria-pressed={theme === value} onClick={() => setTheme(value)}>{value}</button>)}</div>
               <div className="segmented" aria-label="Preview viewport">{(["desktop", "mobile"] as const).map((value) => <button key={value} type="button" aria-pressed={viewport === value} onClick={() => setViewport(value)}>{value}</button>)}</div>
               <div className="segmented" aria-label="Preview motion">{(["animated", "static"] as const).map((value) => <button key={value} type="button" aria-pressed={motion === value} onClick={() => { setMotion(value); setPaused(false); }}>{value}</button>)}</div>
+              <button className="toolbar-button toolbar-button-download" type="button" onClick={downloadCurrentHero} aria-label={`Download current ${theme} ${viewport} ${motion} SVG image`}>Download SVG</button>
               {motion === "animated" ? <button className="toolbar-button" type="button" onClick={() => setPaused((value) => !value)}>{paused ? "Resume" : "Pause"}</button> : null}
               {motion === "animated" ? <button className="toolbar-button" type="button" onClick={() => { setReplayKey((value) => value + 1); setPaused(false); }}>Replay</button> : null}
             </div>

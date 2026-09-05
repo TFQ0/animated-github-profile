@@ -5,7 +5,7 @@ import {
   parseProfileConfig,
   profileConfigSchema,
 } from "../domain/profile";
-import { generateArtifacts, generateZip } from "./artifacts";
+import { generateArtifacts, generateHeroArtifact, generateZip } from "./artifacts";
 import { cleanText, escapeTableCell, sanitizeMarkdown } from "./escape";
 import { renderReadme } from "./readme";
 import { heroVariants, renderHeroSvg } from "./svg";
@@ -55,6 +55,18 @@ describe("profile artifact generation", () => {
         expect(svg).toContain("@keyframes");
         expect(svg).toContain("prefers-reduced-motion:no-preference");
       }
+    }
+  });
+
+  it("exports any selected hero variant as the same standalone SVG used by the bundle", () => {
+    const config = cloneDefaultConfig();
+    const bundle = generateArtifacts(config);
+
+    for (const variant of heroVariants) {
+      const artifact = generateHeroArtifact(config, variant);
+      expect(artifact.path).toMatch(/^assets\/profile-header.*\.svg$/);
+      expect(artifact.content).toBe(renderHeroSvg(config, variant));
+      expect(bundle).toContainEqual(artifact);
     }
   });
 

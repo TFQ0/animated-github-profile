@@ -1,6 +1,11 @@
 import type { ProfileConfig } from "../domain/profile";
 import { renderReadme } from "./readme";
-import { heroFilename, heroVariants, renderHeroSvg } from "./svg";
+import {
+  heroFilename,
+  heroVariants,
+  renderHeroSvg,
+  type HeroVariant,
+} from "./svg";
 
 export interface GeneratedArtifact {
   path: string;
@@ -22,6 +27,16 @@ The generated checks and statuses are decorative demonstrations, not live CI res
 `;
 }
 
+export function generateHeroArtifact(
+  config: ProfileConfig,
+  variant: HeroVariant,
+): GeneratedArtifact {
+  return {
+    path: `assets/${heroFilename(variant)}`,
+    content: renderHeroSvg(config, variant),
+  };
+}
+
 export function generateArtifacts(config: ProfileConfig): GeneratedArtifact[] {
   const artifacts: GeneratedArtifact[] = [
     { path: "README.md", content: renderReadme(config) },
@@ -33,10 +48,7 @@ export function generateArtifacts(config: ProfileConfig): GeneratedArtifact[] {
   ];
 
   for (const variant of heroVariants) {
-    artifacts.push({
-      path: `assets/${heroFilename(variant)}`,
-      content: renderHeroSvg(config, variant),
-    });
+    artifacts.push(generateHeroArtifact(config, variant));
   }
 
   return artifacts;
