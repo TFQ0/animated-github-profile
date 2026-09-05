@@ -1,14 +1,24 @@
 # Animated GitHub Profile Studio
 
-A browser-based editor for creating a personal GitHub profile README from one reusable configuration. Customize the text, animated terminal, featured repositories, skills, links, section order, colors, and motion settings, then export a ready-to-upload ZIP.
+A browser-based editor for creating a personal GitHub profile README from one reusable configuration. Customize the design, fonts, text, animated terminal, featured repositories, images, GIFs, links, section order, colors, and motion settings, then export a ready-to-upload ZIP.
 
 The built-in TFQ0 design remains the canonical example, but users no longer need to edit eight SVG files by hand.
+
+## Design and media customization
+
+Configuration v2 adds three focused customization systems:
+
+- Four ready-made visual presets: Quality Control, Classic Terminal, Retro Arcade, and Anime HUD. They use generic interface elements and include no franchise characters, logos, or copied artwork.
+- Curated font presets that map to controlled, SVG-safe font stacks rather than accepting arbitrary CSS.
+- Structured remote media entries for images and GIFs referenced by HTTPS URL, with accessibility and attribution information kept alongside each entry.
+
+Applying a visual preset changes presentation without replacing a user's profile text, repositories, links, or media. Loading a complete sample is a separate, confirmed action. Valid v1 configurations migrate automatically when imported or restored from browser storage.
 
 ## What it includes
 
 - Live desktop and mobile preview in dark and light themes.
 - Animated and reduced-motion/static SVG variants.
-- Profile, hero, project, skill, link, palette, section, Markdown, and footer editing.
+- Design, font, profile, hero, project, skill, link, structured media, palette, section, Markdown, and footer editing.
 - Optional public GitHub repository import with no login or token.
 - Local autosave of the last valid configuration.
 - Versioned `profile.config.json` import/export.
@@ -19,8 +29,8 @@ The built-in TFQ0 design remains the canonical example, but users no longer need
 
 ## Use the studio
 
-1. Open the app and choose **Start blank** or customize the TFQ0 example.
-2. Work through Profile, Hero, Projects, Skills, Links, Style, and Sections.
+1. Open the app, choose a design, then select **Start a blank profile** or customize the TFQ0 example.
+2. Work through Profile, Hero, Projects, Skills, Links, Media, Colors, and Sections.
 3. Check the desktop/mobile, dark/light, and animated/static previews.
 4. Resolve validation errors and review any design warnings in Export.
 5. To keep only the image, choose its desktop/mobile, dark/light, and animated/static options, then select **Download SVG**.
@@ -52,7 +62,7 @@ The production site is written to `dist/`. Vite uses relative asset URLs, so the
 
 ```text
 src/
-├── domain/profile.ts       # strict v1 config, template metadata, presets
+├── domain/profile.ts       # strict versioned config and template metadata
 ├── generator/
 │   ├── svg.ts              # pure eight-variant SVG renderer
 │   ├── readme.ts           # GitHub README renderer
@@ -72,8 +82,12 @@ src/
 - Drafts and the short-lived public repository cache stay in browser storage.
 - Only public repository metadata is fetched directly from GitHub's public API.
 - Generated SVGs contain no scripts, event handlers, remote fonts, external images, tracking, or live CI claims.
+- User-selected media is referenced by HTTPS URL in the README rather than copied into the ZIP or embedded in the generated hero SVG.
+- Previewing or viewing remote media may send an ordinary request to its third-party host. Remote content can disappear or change independently of the Studio.
 - Static fallbacks are generated for visitors who prefer reduced motion.
 - Custom Markdown blocks raw HTML and neutralizes non-HTTPS link destinations in generated output.
+
+Users must own or hold permission for any media they add. Attribution alone does not grant permission, and adding media does not imply affiliation with or endorsement by its creator or rights holder. See [User content and third-party media notice](./USER_CONTENT_NOTICE.md).
 
 ## Legacy reference
 
@@ -81,4 +95,6 @@ The original hand-authored TFQ0 SVGs, screenshots, GIF, and `preview.html` remai
 
 ## License
 
-No license has been selected yet. Choose and add an appropriate license before inviting third parties to copy, modify, or redistribute the source.
+Animated GitHub Profile Studio is released under the [MIT License](./LICENSE).
+
+The MIT License does not grant rights to user-supplied content or third-party media. See [User content and third-party media notice](./USER_CONTENT_NOTICE.md).

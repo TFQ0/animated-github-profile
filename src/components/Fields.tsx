@@ -10,6 +10,38 @@ interface FieldProps {
   type?: "text" | "url";
 }
 
+interface SelectFieldProps {
+  label: string;
+  value: string;
+  options: ReadonlyArray<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+  hint?: string;
+}
+
+export function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+  hint,
+}: SelectFieldProps) {
+  return (
+    <label className="field">
+      <span className="field-label-row">
+        <span>{label}</span>
+      </span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {hint ? <small>{hint}</small> : null}
+    </label>
+  );
+}
+
 export function TextField({
   label,
   value,

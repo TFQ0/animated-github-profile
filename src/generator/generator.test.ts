@@ -5,6 +5,7 @@ import {
   parseProfileConfig,
   profileConfigSchema,
 } from "../domain/profile";
+import { applyDesignPreset, designPresets } from "../domain/presets";
 import { generateArtifacts, generateHeroArtifact, generateZip } from "./artifacts";
 import { cleanText, escapeTableCell, sanitizeMarkdown } from "./escape";
 import { renderReadme } from "./readme";
@@ -194,18 +195,112 @@ describe("profile artifact generation", () => {
         links: [{ id: "broken", label: "Broken", url: "not a url" }],
       }).success,
     ).toBe(false);
-    expect(() => parseProfileConfig({ schemaVersion: 2 })).toThrow(
-      "Unsupported profile configuration version: 2",
+    expect(() => parseProfileConfig({ schemaVersion: 3 })).toThrow(
+      "Unsupported profile configuration version: 3",
     );
 
     const earlierV1 = JSON.parse(JSON.stringify(config)) as Record<string, unknown>;
+    earlierV1.schemaVersion = 1;
     delete earlierV1.template;
     delete earlierV1.accessibility;
+    delete earlierV1.media;
     delete (earlierV1.hero as Record<string, unknown>).labels;
+    delete (earlierV1.appearance as Record<string, unknown>).fontId;
+    delete (earlierV1.sectionHeadings as Record<string, unknown>).media;
     const migrated = parseProfileConfig(earlierV1);
+    expect(migrated.schemaVersion).toBe(2);
     expect(migrated.template).toEqual({ id: "quality-control", version: 1 });
     expect(migrated.hero.labels.passed).toBe("PASS");
     expect(migrated.accessibility.language).toBe("en");
+    expect(migrated.appearance.fontId).toBe("modern");
+    expect(migrated.media).toEqual([]);
+    expect(migrated.sections).not.toContain("media");
+  });
+
+  it("applies every trusted design without replacing personal content", () => {
+    const source = cloneDefaultConfig();
+    source.identity.displayName = "Personal Name";
+    source.custom = { heading: "Personal notes", markdown: "Keep this content." };
+    const original = structuredClone(source);
+
+    expect(new Set(designPresets.map((preset) => preset.id)).size).toBe(designPresets.length);
+    for (const preset of designPresets) {
+      const applied = applyDesignPreset(source, preset.id);
+      expect(applied).not.toBe(source);
+      expect(applied.identity).toEqual(source.identity);
+      expect(applied.repositories).toEqual(source.repositories);
+      expect(applied.custom).toEqual(source.custom);
+      expect(applied.template.id).toBe(preset.id);
+      expect(profileConfigSchema.safeParse(applied).success).toBe(true);
+
+      for (const variant of heroVariants) {
+        const svg = renderHeroSvg(applied, variant);
+        expect(new DOMParser().parseFromString(svg, "image/svg+xml").querySelector("parsererror")).toBeNull();
+        expect(svg).not.toMatch(/<script|<foreignObject|\son[a-z]+=/i);
+        expect(svg).not.toMatch(/(?:href|src)=["']https?:/i);
+      }
+    }
+    expect(source).toEqual(original);
+  });
+
+  it("validates and safely renders structured remote media without bundling it", () => {
+    const config = cloneDefaultConfig();
+    config.media = [
+      {
+        id: "featured-animation",
+        kind: "gif",
+        url: "https://cdn.example.com/scene.gif?first=1&second=2",
+        reducedMotionUrl: "https://cdn.example.com/scene-still.png",
+        alt: `A "neon" scene <without flashing>`,
+        caption: "A custom visual & short caption.",
+        widthPercent: 75,
+        align: "center",
+        attribution: {
+          sourceLabel: "Original creator <studio>",
+          sourceUrl: "https://example.com/source?first=1&second=2",
+          licenseName: "Used with permission",
+          licenseUrl: "https://example.com/terms",
+        },
+      },
+    ];
+    config.sections = ["media"];
+    const valid = profileConfigSchema.parse(config);
+    const readme = renderReadme(valid);
+
+    expect(readme).toContain('<a id="media"></a>');
+    expect(readme).toContain('media="(prefers-reduced-motion: reduce)"');
+    expect(readme).toContain("scene.gif?first=1&amp;second=2");
+    expect(readme).toContain('alt="A &quot;neon&quot; scene &lt;without flashing&gt;"');
+    expect(readme).toContain("Original creator &lt;studio&gt;");
+    expect(readme).toContain('width="75%"');
+
+    const svg = renderHeroSvg(valid, heroVariants[0]!);
+    expect(svg).not.toContain("cdn.example.com");
+    const artifacts = generateArtifacts(valid);
+    expect(artifacts).toHaveLength(11);
+    expect(artifacts.some((artifact) => artifact.path.includes("featured-animation"))).toBe(false);
+  });
+
+  it("rejects unsafe media, invalid font IDs, and duplicate media IDs", () => {
+    const config = cloneDefaultConfig();
+    const media = {
+      id: "media-one",
+      kind: "image" as const,
+      url: "https://example.com/image.png",
+      reducedMotionUrl: "",
+      alt: "Example artwork",
+      caption: "",
+      widthPercent: 100,
+      align: "center" as const,
+      attribution: { sourceLabel: "", sourceUrl: "", licenseName: "", licenseUrl: "" },
+    };
+
+    expect(profileConfigSchema.safeParse({ ...config, media: [{ ...media, url: "http://example.com/a.gif" }] }).success).toBe(false);
+    expect(profileConfigSchema.safeParse({ ...config, media: [{ ...media, url: "data:image/gif;base64,AA==" }] }).success).toBe(false);
+    expect(profileConfigSchema.safeParse({ ...config, media: [{ ...media, url: "https://user:pass@example.com/a.gif" }] }).success).toBe(false);
+    expect(profileConfigSchema.safeParse({ ...config, media: [{ ...media, alt: "" }] }).success).toBe(false);
+    expect(profileConfigSchema.safeParse({ ...config, appearance: { ...config.appearance, fontId: "url(https://evil.example/font)" } }).success).toBe(false);
+    expect(profileConfigSchema.safeParse({ ...config, media: [media, { ...media, id: "MEDIA-ONE" }] }).success).toBe(false);
   });
 
   it("emits stable targets for every generated navigation link", () => {

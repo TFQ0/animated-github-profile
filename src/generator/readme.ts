@@ -24,6 +24,8 @@ function headingForSection(config: ProfileConfig, section: SectionKey): string {
       return config.sectionHeadings.skills;
     case "links":
       return config.sectionHeadings.links;
+    case "media":
+      return config.sectionHeadings.media;
     case "custom":
       return config.custom.heading;
   }
@@ -69,6 +71,46 @@ function renderLinks(config: ProfileConfig): string {
   return `## ${escapeMarkdownText(config.sectionHeadings.links)}\n\n${links}`;
 }
 
+function renderMedia(config: ProfileConfig): string {
+  if (config.media.length === 0) return "";
+  const items = config.media
+    .map((item) => {
+      const align = item.align === "left" ? "left" : item.align === "right" ? "right" : "center";
+      const sourceUrl = escapeXml(safeHttpsUrl(item.url));
+      const reducedMotionSource = item.reducedMotionUrl
+        ? `\n    <source media="(prefers-reduced-motion: reduce)" srcset="${escapeXml(safeHttpsUrl(item.reducedMotionUrl))}">`
+        : "";
+      const attributionParts: string[] = [];
+      if (item.attribution.sourceLabel || item.attribution.sourceUrl) {
+        attributionParts.push(
+          item.attribution.sourceUrl
+            ? `Source: <a href="${escapeXml(safeHttpsUrl(item.attribution.sourceUrl))}">${escapeXml(item.attribution.sourceLabel || "Source page")}</a>`
+            : `Source: ${escapeXml(item.attribution.sourceLabel)}`,
+        );
+      }
+      if (item.attribution.licenseName || item.attribution.licenseUrl) {
+        attributionParts.push(
+          item.attribution.licenseUrl
+            ? `License: <a href="${escapeXml(safeHttpsUrl(item.attribution.licenseUrl))}">${escapeXml(item.attribution.licenseName || "License terms")}</a>`
+            : `License: ${escapeXml(item.attribution.licenseName)}`,
+        );
+      }
+      const attributionHtml = attributionParts.length
+        ? attributionParts.join(" · ")
+        : "";
+      const captionHtml = item.caption ? escapeXml(item.caption) : "";
+      const detailHtml = [captionHtml, attributionHtml].filter(Boolean).join("<br>");
+
+      return `<p align="${align}">
+  <picture>${reducedMotionSource}
+    <img src="${sourceUrl}" alt="${escapeXml(item.alt)}" width="${item.widthPercent}%">
+  </picture>${detailHtml ? `\n  <br><sub>${detailHtml}</sub>` : ""}
+</p>`;
+    })
+    .join("\n\n");
+  return `## ${escapeMarkdownText(config.sectionHeadings.media)}\n\n${items}`;
+}
+
 function renderCustom(config: ProfileConfig): string {
   if (!config.custom.heading || !config.custom.markdown.trim()) return "";
   return `## ${escapeMarkdownText(config.custom.heading)}\n\n${sanitizeMarkdown(config.custom.markdown)}`;
@@ -88,6 +130,9 @@ function renderSection(config: ProfileConfig, section: SectionKey): string {
       break;
     case "links":
       content = renderLinks(config);
+      break;
+    case "media":
+      content = renderMedia(config);
       break;
     case "custom":
       content = renderCustom(config);

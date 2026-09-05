@@ -3,6 +3,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ChangeEvent,
 } from "react";
 import {
@@ -12,6 +13,8 @@ import {
   defaultProfileConfig,
   parseProfileConfig,
   profileConfigSchema,
+  type FontId,
+  type MediaItem,
   type Palette,
   type ProfileConfig,
   type ProfileLink,
@@ -19,6 +22,7 @@ import {
   type SectionKey,
   type SkillGroup,
 } from "./domain/profile";
+import { applyDesignPreset, designPresets } from "./domain/presets";
 import {
   downloadBlob,
   downloadText,
@@ -43,6 +47,7 @@ import {
   CommaListField,
   EditorCard,
   ItemActions,
+  SelectField,
   TextArea,
   TextField,
 } from "./components/Fields";
@@ -50,37 +55,56 @@ import { ProfilePreview } from "./components/ProfilePreview";
 import { registerProfileWebMcpTools } from "./webmcp";
 
 type PanelKey =
+  | "design"
   | "profile"
   | "hero"
   | "projects"
   | "skills"
   | "links"
+  | "media"
   | "style"
   | "sections"
   | "export";
 
 type Notice = { tone: "success" | "error" | "info"; message: string } | null;
 
-const storageKey = "animated-profile-studio:config:v1";
+const storageKey = "animated-profile-studio:config:v2";
+const legacyStorageKey = "animated-profile-studio:config:v1";
 const githubCachePrefix = "animated-profile-studio:github:";
 const allSections: SectionKey[] = [
   "about",
   "repositories",
   "skills",
   "links",
+  "media",
   "custom",
 ];
 
 const panels: Array<{ key: PanelKey; label: string; short: string }> = [
-  { key: "profile", label: "Profile", short: "01" },
-  { key: "hero", label: "Hero", short: "02" },
-  { key: "projects", label: "Projects", short: "03" },
-  { key: "skills", label: "Skills", short: "04" },
-  { key: "links", label: "Links", short: "05" },
-  { key: "style", label: "Style", short: "06" },
-  { key: "sections", label: "Sections", short: "07" },
-  { key: "export", label: "Export", short: "08" },
+  { key: "design", label: "Design", short: "01" },
+  { key: "profile", label: "Profile", short: "02" },
+  { key: "hero", label: "Hero", short: "03" },
+  { key: "projects", label: "Projects", short: "04" },
+  { key: "skills", label: "Skills", short: "05" },
+  { key: "links", label: "Links", short: "06" },
+  { key: "media", label: "Media", short: "07" },
+  { key: "style", label: "Colors", short: "08" },
+  { key: "sections", label: "Sections", short: "09" },
+  { key: "export", label: "Export", short: "10" },
 ];
+
+const fontOptions: ReadonlyArray<{ value: FontId; label: string }> = [
+  { value: "modern", label: "Modern sans" },
+  { value: "mono", label: "Terminal mono" },
+  { value: "classic", label: "Classic serif" },
+  { value: "rounded", label: "Rounded display" },
+];
+
+function sectionLabel(section: SectionKey): string {
+  if (section === "repositories") return "Featured projects";
+  if (section === "media") return "Images & GIFs";
+  return section.charAt(0).toUpperCase() + section.slice(1);
+}
 
 function moveItem<T>(items: T[], index: number, direction: -1 | 1): T[] {
   const target = index + direction;
@@ -93,13 +117,24 @@ function moveItem<T>(items: T[], index: number, direction: -1 | 1): T[] {
 }
 
 function loadInitialConfig(): ProfileConfig {
-  try {
-    const saved = localStorage.getItem(storageKey);
-    if (saved) return parseProfileConfig(JSON.parse(saved));
-  } catch {
-    // A malformed browser draft should never prevent the editor from opening.
+  for (const key of [storageKey, legacyStorageKey]) {
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved) return parseProfileConfig(JSON.parse(saved));
+    } catch {
+      // Try the legacy draft before falling back to the built-in example.
+    }
   }
   return cloneDefaultConfig();
+}
+
+function isSafeHttpsInput(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password;
+  } catch {
+    return false;
+  }
 }
 
 function hexToRgb(hex: string): [number, number, number] | null {
@@ -158,6 +193,22 @@ function getWarnings(config: ProfileConfig): string[] {
   if (config.hero.footerLeft.length > 24 || config.hero.footerRight.length > 34) {
     warnings.push("A hero footer label may be clipped on mobile.");
   }
+  const gifsWithoutFallback = config.media.filter(
+    (item) => item.kind === "gif" && !item.reducedMotionUrl,
+  ).length;
+  if (gifsWithoutFallback) {
+    warnings.push(
+      `${gifsWithoutFallback} animated media item${gifsWithoutFallback === 1 ? " has" : "s have"} no reduced-motion fallback.`,
+    );
+  }
+  const mediaWithoutSource = config.media.filter(
+    (item) => !item.attribution.sourceLabel && !item.attribution.licenseName,
+  ).length;
+  if (mediaWithoutSource) {
+    warnings.push(
+      `Verify usage rights for ${mediaWithoutSource} media item${mediaWithoutSource === 1 ? "" : "s"}; attribution alone does not grant permission.`,
+    );
+  }
   for (const theme of ["dark", "light"] as const) {
     const palette = config.appearance[theme];
     const foregrounds = [
@@ -199,7 +250,8 @@ function sanitizedDownloadName(username: string): string {
 
 export default function App() {
   const [config, setConfig] = useState<ProfileConfig>(loadInitialConfig);
-  const [activePanel, setActivePanel] = useState<PanelKey>("profile");
+  const [activePanel, setActivePanel] = useState<PanelKey>("design");
+  const [mobilePane, setMobilePane] = useState<"edit" | "preview">("edit");
   const [theme, setTheme] = useState<HeroTheme>("dark");
   const [viewport, setViewport] = useState<HeroViewport>("desktop");
   const [motion, setMotion] = useState<HeroMotion>(() =>
@@ -336,6 +388,44 @@ export default function App() {
       links: current.links.map((link, itemIndex) =>
         itemIndex === index ? { ...link, ...patch } : link,
       ),
+    }));
+  }
+
+  function updateMediaItem(index: number, patch: Partial<MediaItem>) {
+    setConfig((current) => ({
+      ...current,
+      media: current.media.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...patch } : item,
+      ),
+    }));
+  }
+
+  function addMediaItem() {
+    if (config.media.length >= 6) return;
+    setConfig((current) => ({
+      ...current,
+      media: [
+        ...current.media,
+        {
+          id: createId("media"),
+          kind: "gif",
+          url: "",
+          reducedMotionUrl: "",
+          alt: "",
+          caption: "",
+          widthPercent: 100,
+          align: "center",
+          attribution: {
+            sourceLabel: "",
+            sourceUrl: "",
+            licenseName: "",
+            licenseUrl: "",
+          },
+        },
+      ],
+      sections: current.sections.includes("media")
+        ? current.sections
+        : [...current.sections, "media"],
     }));
   }
 
@@ -582,23 +672,31 @@ export default function App() {
         </div>
       </header>
 
-      <main className="studio-workspace">
+      <div className="mobile-view-switch" aria-label="Workspace view">
+        <button type="button" aria-pressed={mobilePane === "edit"} onClick={() => setMobilePane("edit")}>Edit</button>
+        <button type="button" aria-pressed={mobilePane === "preview"} onClick={() => setMobilePane("preview")}>Preview</button>
+      </div>
+
+      <main className={`studio-workspace mobile-pane-${mobilePane}`}>
         <aside className="editor-pane" aria-label="Profile settings">
           <div className="editor-intro">
             <div>
-              <span className="workspace-eyebrow">CONFIG / V1</span>
+              <span className="workspace-eyebrow">CONFIG / V2</span>
               <h1>Make it yours.</h1>
             </div>
-            <div className="intro-actions"><button className="text-button" type="button" onClick={startBlankProfile}>Start blank</button><button className="text-button" type="button" onClick={resetProfile}>Restore example</button></div>
+            <span className="editor-current-step">{panels.find((panel) => panel.key === activePanel)?.short} / 10</span>
           </div>
-          <nav className="panel-tabs" aria-label="Editor sections">
+          <nav className="panel-tabs" aria-label="Editor sections" role="tablist">
             {panels.map((panel) => (
               <button
                 key={panel.key}
                 type="button"
+                role="tab"
+                id={`tab-${panel.key}`}
+                aria-controls={`panel-${panel.key}`}
+                aria-selected={activePanel === panel.key}
                 className={activePanel === panel.key ? "panel-tab panel-tab-active" : "panel-tab"}
                 onClick={() => setActivePanel(panel.key)}
-                aria-current={activePanel === panel.key ? "page" : undefined}
               >
                 <span>{panel.short}</span>
                 {panel.label}
@@ -606,7 +704,69 @@ export default function App() {
             ))}
           </nav>
 
-          <div className="editor-scroll">
+          <div className="editor-scroll" role="tabpanel" id={`panel-${activePanel}`} aria-labelledby={`tab-${activePanel}`}>
+            {activePanel === "design" ? (
+              <>
+                <EditorCard title="Choose a design" eyebrow="Ready-made visual templates">
+                  <p className="card-intro">Apply a complete visual system without replacing your profile text, projects, links, or media.</p>
+                  <div className="preset-grid" role="radiogroup" aria-label="Profile design">
+                    {designPresets.map((preset) => {
+                      const selected = config.template.id === preset.id;
+                      return (
+                        <button
+                          className={selected ? "preset-card preset-card-selected" : "preset-card"}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          key={preset.id}
+                          onClick={() => {
+                            setConfig((current) => applyDesignPreset(current, preset.id));
+                            setNotice({ tone: "success", message: `${preset.name} design applied. Your content was preserved.` });
+                          }}
+                        >
+                          <span
+                            className="preset-preview"
+                            style={{
+                              background: preset.appearance.dark.background,
+                              borderColor: preset.appearance.dark.line,
+                              color: preset.appearance.dark.accent,
+                              borderRadius: `${Math.min(14, preset.appearance.cornerRadius)}px`,
+                            } as CSSProperties}
+                            aria-hidden="true"
+                          >
+                            <span style={{ background: preset.appearance.dark.accent }} />
+                            <span style={{ background: preset.appearance.dark.surface }} />
+                            <span style={{ background: preset.appearance.dark.accentSoft }} />
+                          </span>
+                          <span className="preset-copy"><strong>{preset.name}</strong><small>{preset.description}</small></span>
+                          <span className="preset-state">{selected ? "Active" : "Apply"}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </EditorCard>
+                <EditorCard title="Typography" eyebrow="Safe system font stacks">
+                  <SelectField
+                    label="Font style"
+                    value={config.appearance.fontId}
+                    options={fontOptions}
+                    hint="Fonts are allowlisted and require no remote download. Exact rendering can vary by operating system."
+                    onChange={(value) => setConfig((current) => ({
+                      ...current,
+                      appearance: { ...current.appearance, fontId: value as FontId },
+                    }))}
+                  />
+                </EditorCard>
+                <EditorCard title="Choose your starting point" eyebrow="Content samples">
+                  <div className="starter-actions">
+                    <button className="button button-secondary" type="button" onClick={startBlankProfile}>Start a blank profile</button>
+                    <button className="button button-secondary" type="button" onClick={resetProfile}>Load the TFQ0 sample</button>
+                  </div>
+                  <p className="privacy-note"><span aria-hidden="true">●</span> Applying a design changes visuals only. Loading a sample replaces all current content after confirmation.</p>
+                </EditorCard>
+              </>
+            ) : null}
+
             {activePanel === "profile" ? (
               <>
                 <EditorCard title="Identity" eyebrow="Public profile">
@@ -764,6 +924,103 @@ export default function App() {
               </EditorCard>
             ) : null}
 
+            {activePanel === "media" ? (
+              <>
+                <EditorCard
+                  title="Images & animated GIFs"
+                  eyebrow={`${config.media.length}/6 remote items`}
+                  actions={<button className="text-button" type="button" disabled={config.media.length >= 6} onClick={addMediaItem}>Add media</button>}
+                >
+                  <div className="rights-notice">
+                    <span aria-hidden="true">!</span>
+                    <p><strong>Use media you own or may republish.</strong> Anime and game artwork is usually third-party content; attribution alone does not grant permission.</p>
+                  </div>
+                  <TextField
+                    label="Section heading"
+                    value={config.sectionHeadings.media}
+                    maxLength={70}
+                    onChange={(value) => setConfig((current) => ({
+                      ...current,
+                      sectionHeadings: { ...current.sectionHeadings, media: value },
+                    }))}
+                  />
+                  <p className="privacy-note"><span aria-hidden="true">●</span> The Studio references HTTPS URLs; it does not download or bundle these files. Previewing or visiting the profile contacts the media host.</p>
+                  {config.media.length === 0 ? <div className="empty-state"><strong>No media yet</strong><span>Add an HTTPS image or GIF URL, then place this section anywhere in Sections.</span></div> : null}
+                </EditorCard>
+                {config.media.map((item, index) => (
+                  <EditorCard
+                    key={item.id}
+                    title={`Media ${String(index + 1).padStart(2, "0")}`}
+                    eyebrow={item.kind === "gif" ? "Animated image" : "Still image"}
+                  >
+                    {!isSafeHttpsInput(item.url) || !item.alt.trim() ? (
+                      <p className="inline-error" role="alert">Add a valid HTTPS media URL and meaningful alt text to make this item export-ready.</p>
+                    ) : null}
+                    <SelectField
+                      label="Media type"
+                      value={item.kind}
+                      options={[{ value: "gif", label: "Animated GIF" }, { value: "image", label: "Still image" }]}
+                      onChange={(value) => updateMediaItem(index, { kind: value as MediaItem["kind"] })}
+                    />
+                    <TextField
+                      label="HTTPS media URL"
+                      value={item.url}
+                      type="url"
+                      placeholder="https://example.com/animation.gif"
+                      hint="Use a direct HTTPS image URL without embedded credentials."
+                      onChange={(value) => updateMediaItem(index, { url: value })}
+                    />
+                    {item.kind === "gif" ? (
+                      <TextField
+                        label="Reduced-motion image URL"
+                        value={item.reducedMotionUrl}
+                        type="url"
+                        placeholder="https://example.com/still-frame.png"
+                        hint="Optional but recommended. Static preview and reduced-motion visitors use this image."
+                        onChange={(value) => updateMediaItem(index, { reducedMotionUrl: value })}
+                      />
+                    ) : null}
+                    <TextArea
+                      label="Alt text"
+                      value={item.alt}
+                      maxLength={240}
+                      rows={3}
+                      hint="Required. Describe the meaningful visual content without saying “image of”."
+                      onChange={(value) => updateMediaItem(index, { alt: value })}
+                    />
+                    <TextField label="Caption" value={item.caption} maxLength={180} onChange={(value) => updateMediaItem(index, { caption: value })} />
+                    <div className="field-grid">
+                      <SelectField
+                        label="Alignment"
+                        value={item.align}
+                        options={[{ value: "left", label: "Left" }, { value: "center", label: "Center" }, { value: "right", label: "Right" }]}
+                        onChange={(value) => updateMediaItem(index, { align: value as MediaItem["align"] })}
+                      />
+                      <label className="field range-field">
+                        <span className="field-label-row"><span>Width</span><strong>{item.widthPercent}%</strong></span>
+                        <input type="range" min="25" max="100" step="5" value={item.widthPercent} onChange={(event) => updateMediaItem(index, { widthPercent: Number(event.target.value) })} />
+                      </label>
+                    </div>
+                    <details className="attribution-fields" open={Boolean(item.attribution.sourceLabel || item.attribution.licenseName)}>
+                      <summary>Source and license details</summary>
+                      <p>Include accurate details when the creator or license requires attribution.</p>
+                      <TextField label="Source / creator label" value={item.attribution.sourceLabel} maxLength={80} onChange={(value) => updateMediaItem(index, { attribution: { ...item.attribution, sourceLabel: value } })} />
+                      <TextField label="Source page URL" value={item.attribution.sourceUrl} type="url" placeholder="https://…" onChange={(value) => updateMediaItem(index, { attribution: { ...item.attribution, sourceUrl: value } })} />
+                      <TextField label="License name" value={item.attribution.licenseName} maxLength={80} onChange={(value) => updateMediaItem(index, { attribution: { ...item.attribution, licenseName: value } })} />
+                      <TextField label="License URL" value={item.attribution.licenseUrl} type="url" placeholder="https://…" onChange={(value) => updateMediaItem(index, { attribution: { ...item.attribution, licenseUrl: value } })} />
+                    </details>
+                    <ItemActions
+                      index={index}
+                      length={config.media.length}
+                      onMove={(direction) => setConfig((current) => ({ ...current, media: moveItem(current.media, index, direction) }))}
+                      onRemove={() => setConfig((current) => ({ ...current, media: current.media.filter((_, itemIndex) => itemIndex !== index) }))}
+                      removeLabel="Remove media"
+                    />
+                  </EditorCard>
+                ))}
+              </>
+            ) : null}
+
             {activePanel === "style" ? (
               <>
                 {(["dark", "light"] as const).map((themeKey) => (
@@ -777,7 +1034,7 @@ export default function App() {
                 ))}
                 <EditorCard title="Shape" eyebrow="Header frame">
                   <label className="field range-field"><span className="field-label-row"><span>Corner radius</span><strong>{config.appearance.cornerRadius}px</strong></span><input type="range" min="0" max="32" value={config.appearance.cornerRadius} onChange={(event) => setConfig((current) => ({ ...current, appearance: { ...current.appearance, cornerRadius: Number(event.target.value) } }))} /></label>
-                  <button className="button button-secondary button-full" type="button" onClick={() => setConfig((current) => ({ ...current, appearance: structuredClone(defaultProfileConfig.appearance) }))}>Restore original palette</button>
+                  <button className="button button-secondary button-full" type="button" onClick={() => setConfig((current) => applyDesignPreset(current, current.template.id))}>Restore current design styling</button>
                 </EditorCard>
               </>
             ) : null}
@@ -791,7 +1048,7 @@ export default function App() {
                       const index = config.sections.indexOf(section);
                       return (
                         <div className={enabled ? "section-order-item section-order-item-enabled" : "section-order-item"} key={section}>
-                          <label><input type="checkbox" checked={enabled} disabled={enabled && config.sections.length === 1} onChange={() => toggleSection(section)} /><span>{section === "repositories" ? "Featured projects" : section.charAt(0).toUpperCase() + section.slice(1)}</span></label>
+                          <label><input type="checkbox" checked={enabled} disabled={enabled && config.sections.length === 1} onChange={() => toggleSection(section)} /><span>{sectionLabel(section)}</span></label>
                           {enabled ? <ItemActions index={index} length={config.sections.length} onMove={(direction) => setConfig((current) => ({ ...current, sections: moveItem(current.sections, index, direction) }))} onRemove={() => toggleSection(section)} removeLabel="Hide" /> : null}
                         </div>
                       );
@@ -802,6 +1059,7 @@ export default function App() {
                   <TextField label="Projects heading" value={config.sectionHeadings.repositories} maxLength={70} onChange={(value) => setConfig((current) => ({ ...current, sectionHeadings: { ...current.sectionHeadings, repositories: value } }))} />
                   <TextField label="Skills heading" value={config.sectionHeadings.skills} maxLength={70} onChange={(value) => setConfig((current) => ({ ...current, sectionHeadings: { ...current.sectionHeadings, skills: value } }))} />
                   <TextField label="Links heading" value={config.sectionHeadings.links} maxLength={70} onChange={(value) => setConfig((current) => ({ ...current, sectionHeadings: { ...current.sectionHeadings, links: value } }))} />
+                  <TextField label="Media heading" value={config.sectionHeadings.media} maxLength={70} onChange={(value) => setConfig((current) => ({ ...current, sectionHeadings: { ...current.sectionHeadings, media: value } }))} />
                 </EditorCard>
                 <EditorCard title="Custom Markdown" eyebrow="Raw HTML is not supported">
                   <TextField label="Heading" value={config.custom.heading} maxLength={70} onChange={(value) => setConfig((current) => ({ ...current, custom: { ...current.custom, heading: value } }))} />
@@ -819,7 +1077,7 @@ export default function App() {
                 <EditorCard title="Ready-to-upload bundle" eyebrow="README + assets + saved config">
                   <div className={validation.success ? "export-health export-health-good" : "export-health export-health-error"}>
                     <span aria-hidden="true">{validation.success ? "✓" : "!"}</span>
-                    <div><strong>{validation.success ? "Configuration is valid" : "Fix configuration errors"}</strong><p>{validation.success ? `${artifacts.length} files will be included. ${warnings.length ? `${warnings.length} design warning${warnings.length === 1 ? "" : "s"}.` : "No design warnings."}` : firstValidationMessage()}</p></div>
+                    <div><strong>{validation.success ? "Configuration is valid" : "Fix configuration errors"}</strong><p>{validation.success ? `${artifacts.length} files will be included. ${warnings.length ? `${warnings.length} review note${warnings.length === 1 ? "" : "s"}.` : "No review notes."}` : firstValidationMessage()}</p></div>
                   </div>
                   {warnings.length > 0 ? <ul className="warning-list">{warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul> : null}
                   <div className="export-actions"><button className="button button-primary" type="button" onClick={downloadBundle} disabled={isExporting}>{isExporting ? "Building…" : "Download complete ZIP"}</button><button className="button button-secondary" type="button" onClick={downloadCurrentHero}>Download current SVG</button><button className="button button-secondary" type="button" onClick={copyReadme}>Copy README</button><button className="button button-secondary" type="button" onClick={downloadConfig}>Download config</button></div>
@@ -849,7 +1107,7 @@ export default function App() {
             </div>
           </div>
           <div className={`preview-stage preview-stage-${viewport}`}>
-            <div className="preview-warning-strip" hidden={warnings.length === 0}><span>{warnings.length}</span> design warning{warnings.length === 1 ? "" : "s"} — review Export before publishing.</div>
+            <div className="preview-warning-strip" hidden={warnings.length === 0}><span>{warnings.length}</span> review note{warnings.length === 1 ? "" : "s"} — open Export before publishing.</div>
             <ProfilePreview config={config} variant={variant} paused={paused} replayKey={replayKey} />
           </div>
         </section>

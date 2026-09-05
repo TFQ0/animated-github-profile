@@ -74,7 +74,7 @@ export function registerProfileWebMcpTools(actions: ProfileToolActions): (() => 
     name: "read_profile_draft",
     title: "Read profile draft",
     description:
-      "Read the complete editable v1 profile configuration, validation state, and generated file list without changing the visible editor.",
+      "Read the complete editable current-version profile configuration, validation state, and generated file list without changing the visible editor.",
     inputSchema: {
       type: "object",
       properties: {},
@@ -93,7 +93,7 @@ export function registerProfileWebMcpTools(actions: ProfileToolActions): (() => 
     name: "stage_profile_configuration",
     title: "Stage profile configuration",
     description:
-      "Validate and stage one complete v1 Profile Studio configuration in the visible editor. This updates the local draft but does not download or publish it.",
+      "Validate, migrate when supported, and stage one complete Profile Studio configuration in the visible editor. This updates the local draft but does not download or publish it.",
     inputSchema: {
       type: "object",
       properties: {

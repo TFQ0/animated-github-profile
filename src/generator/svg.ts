@@ -1,4 +1,9 @@
-import type { Palette, ProfileConfig } from "../domain/profile";
+import type {
+  FontId,
+  Palette,
+  ProfileConfig,
+  TemplateId,
+} from "../domain/profile";
 import { escapeXml } from "./escape";
 
 export type HeroTheme = "dark" | "light";
@@ -120,6 +125,58 @@ function formatPercent(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
+const fontStacks: Record<FontId, { display: string; mono: string }> = {
+  modern: {
+    display: "'Segoe UI',Arial,Helvetica,sans-serif",
+    mono: "'SFMono-Regular',Consolas,'Liberation Mono','Courier New',monospace",
+  },
+  mono: {
+    display: "'SFMono-Regular',Consolas,'Liberation Mono','Courier New',monospace",
+    mono: "'SFMono-Regular',Consolas,'Liberation Mono','Courier New',monospace",
+  },
+  classic: {
+    display: "Georgia,'Times New Roman',serif",
+    mono: "'Courier New',Courier,monospace",
+  },
+  rounded: {
+    display: "'Trebuchet MS','Arial Rounded MT Bold',Arial,sans-serif",
+    mono: "'Lucida Console',Monaco,Consolas,monospace",
+  },
+};
+
+function patternMarkup(templateId: TemplateId, id: string, palette: Palette): string {
+  switch (templateId) {
+    case "classic-terminal":
+      return `<pattern id="${id}" width="18" height="18" patternUnits="userSpaceOnUse"><path d="M0 17.5H18" stroke="${palette.line}" opacity=".2"/></pattern>`;
+    case "retro-arcade":
+      return `<pattern id="${id}" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0 .5H8M.5 0V8" stroke="${palette.muted}" stroke-width=".5" opacity=".13"/></pattern>`;
+    case "anime-hud":
+      return `<pattern id="${id}" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M0 .5H32M.5 0V32" stroke="${palette.line}" opacity=".2"/><path d="M24 0l8 8M0 24l8 8" stroke="${palette.accent}" opacity=".1"/></pattern>`;
+    case "quality-control":
+      return `<pattern id="${id}" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".65" fill="${palette.muted}" opacity=".12"/></pattern>`;
+  }
+}
+
+function frameAccents(templateId: TemplateId, layout: Layout, palette: Palette): string {
+  switch (templateId) {
+    case "classic-terminal":
+      return `<path d="M18 78V94M18 78H34M${layout.width - 18} 78V94M${layout.width - 18} 78H${layout.width - 34}" stroke="${palette.accent}" opacity=".55"/>`;
+    case "retro-arcade":
+      return `<path d="M14 78h34M14 78v34M${layout.width - 14} 78h-34M${layout.width - 14} 78v34" stroke="${palette.accent}" stroke-width="3"/><path d="M14 ${layout.footerDividerY - 14}h22M${layout.width - 14} ${layout.footerDividerY - 14}h-22" stroke="${palette.accent}" stroke-width="3"/>`;
+    case "anime-hud":
+      return `<g fill="none" stroke="${palette.accent}"><path d="M18 92h78l18-18h92" opacity=".72"/><path d="M${layout.width - 18} ${layout.footerDividerY - 22}h-92l-18 18h-78" opacity=".5"/><path d="M${layout.width - 104} 76l34 0 16 16" stroke-width="2"/></g><g fill="${palette.accent}"><circle cx="92" cy="92" r="3"/><circle cx="${layout.width - 104}" cy="${layout.footerDividerY - 22}" r="3"/></g>`;
+    case "quality-control":
+      return "";
+  }
+}
+
+function terminalRadius(templateId: TemplateId): number {
+  if (templateId === "retro-arcade") return 2;
+  if (templateId === "classic-terminal") return 6;
+  if (templateId === "anime-hud") return 16;
+  return 12;
+}
+
 function textFitAttributes(
   value: string,
   fontSize: number,
@@ -200,6 +257,7 @@ function styles(
   prefix: string,
   commandWidth: number,
 ): string {
+  const fonts = fontStacks[config.appearance.fontId];
   const animation =
     variant.motion === "animated"
       ? animationStyles(config, prefix, commandWidth)
@@ -208,8 +266,8 @@ function styles(
     .bg{fill:${palette.background}} .surface{fill:${palette.surface}} .inner{fill:${palette.terminal}}
     .line{stroke:${palette.line};stroke-width:1} .ink{fill:${palette.text}}
     .muted{fill:${palette.muted}} .accent{fill:${palette.accent}} .soft{fill:${palette.accentSoft}}
-    .mono{font-family:'SFMono-Regular',Consolas,'Liberation Mono','Courier New',monospace}
-    .sans{font-family:Arial,Helvetica,sans-serif}
+    .mono{font-family:${fonts.mono}}
+    .sans{font-family:${fonts.display}}
     .pending,.running,.type-cursor,.trail,.boot-label{opacity:0}
     .pass,.complete{opacity:1}
     .typed{transform:scaleX(1);transform-origin:0 0}
@@ -242,7 +300,7 @@ function terminalMarkup(
     .join("\n");
 
   return `<g transform="translate(${layout.terminalX} ${layout.terminalY})">
-<rect width="${layout.terminalWidth}" height="${layout.terminalHeight}" rx="12" class="inner line"/>
+<rect width="${layout.terminalWidth}" height="${layout.terminalHeight}" rx="${terminalRadius(config.template.id)}" class="inner line"/>
 <path d="M0 43H${layout.terminalWidth}" class="line"/>
 <circle cx="21" cy="22" r="4" fill="${palette.muted}" opacity=".9"/>
 <circle cx="36" cy="22" r="4" fill="${palette.muted}" opacity=".68"/>
@@ -319,13 +377,14 @@ export function renderHeroSvg(config: ProfileConfig, variant: HeroVariant): stri
   <title id="${titleId}">${escapeXml(config.accessibility.svgTitle || `${config.identity.displayName} | ${config.identity.headerLabel}`)}</title>
   <desc id="${descId}">${escapeXml(config.identity.primaryRole)}. ${escapeXml(config.hero.headline.join(" "))} ${escapeXml(motionDescription)} Decorative demonstration; not live results.</desc>
   <defs>
-    <pattern id="${patternId}" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".65" fill="${palette.muted}" opacity=".12"/></pattern>
+    ${patternMarkup(config.template.id, patternId, palette)}
     <clipPath id="${clipId}" clipPathUnits="userSpaceOnUse"><rect class="typed" width="${commandWidth}" height="30"/></clipPath>
   </defs>
   ${styles(config, palette, variant, prefix, commandWidth)}
   <rect x=".5" y=".5" width="${layout.width - 1}" height="${layout.height - 1}" rx="${config.appearance.cornerRadius}" class="bg line"/>
   <rect x="1" y="64" width="${layout.width - 2}" height="${contentHeight}" class="surface"/>
   <rect x="1" y="64" width="${layout.width - 2}" height="${contentHeight}" fill="url(#${patternId})"/>
+  ${frameAccents(config.template.id, layout, palette)}
   <path d="M1 64H${layout.width - 1}" class="line"/>
   <rect x="30" y="19" width="27" height="27" rx="5" class="soft"/>
   <path d="M36 27l5 5-5 5m9 0h6" stroke="${palette.accent}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>

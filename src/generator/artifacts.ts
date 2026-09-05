@@ -23,6 +23,8 @@ function renderSetup(config: ProfileConfig): string {
 
 Keep \`profile.config.json\` somewhere safe so you can import and edit this profile again.
 
+If this profile uses structured remote media, those images or GIFs are referenced by HTTPS URL and are not included in this ZIP. Viewing them may send a request to their host, and the content may disappear or change later. You are responsible for owning the media or holding permission to publish it and for providing any required notices. Attribution alone does not grant permission. Referencing media does not imply affiliation with or endorsement by its creator, platform, game, studio, publisher, or franchise. The Studio's MIT License does not grant rights to user-supplied or third-party content.
+
 The generated checks and statuses are decorative demonstrations, not live CI results.
 `;
 }

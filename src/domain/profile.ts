@@ -15,6 +15,8 @@ const safeHttpsUrl = z
   .max(2_048, "Links must be 2,048 characters or fewer.")
   .refine(isSafeHttpsUrl, "Enter an HTTPS link without embedded credentials.");
 
+const optionalSafeHttpsUrl = z.union([z.literal(""), safeHttpsUrl]);
+
 const itemId = z
   .string()
   .min(1)
@@ -85,7 +87,45 @@ const linkSchema = z
   })
   .strict();
 
-export const sectionKeySchema = z.enum([
+export const templateIdSchema = z.enum([
+  "quality-control",
+  "classic-terminal",
+  "retro-arcade",
+  "anime-hud",
+]);
+
+export const fontIdSchema = z.enum(["modern", "mono", "classic", "rounded"]);
+
+const mediaAttributionSchema = z
+  .object({
+    sourceLabel: z.string().trim().max(80).default(""),
+    sourceUrl: optionalSafeHttpsUrl.default(""),
+    licenseName: z.string().trim().max(80).default(""),
+    licenseUrl: optionalSafeHttpsUrl.default(""),
+  })
+  .strict()
+  .default({
+    sourceLabel: "",
+    sourceUrl: "",
+    licenseName: "",
+    licenseUrl: "",
+  });
+
+const mediaItemSchema = z
+  .object({
+    id: itemId,
+    kind: z.enum(["image", "gif"]),
+    url: safeHttpsUrl,
+    reducedMotionUrl: optionalSafeHttpsUrl.default(""),
+    alt: z.string().trim().min(1).max(240),
+    caption: z.string().trim().max(180).default(""),
+    widthPercent: z.number().int().min(25).max(100),
+    align: z.enum(["left", "center", "right"]),
+    attribution: mediaAttributionSchema,
+  })
+  .strict();
+
+const legacySectionKeySchema = z.enum([
   "about",
   "repositories",
   "skills",
@@ -93,7 +133,16 @@ export const sectionKeySchema = z.enum([
   "custom",
 ]);
 
-export const profileConfigSchema = z
+export const sectionKeySchema = z.enum([
+  "about",
+  "repositories",
+  "skills",
+  "links",
+  "media",
+  "custom",
+]);
+
+const profileConfigV1ObjectSchema = z
   .object({
     schemaVersion: z.literal(1),
     template: z
@@ -173,7 +222,7 @@ export const profileConfigSchema = z
       })
       .strict(),
     sections: z
-      .array(sectionKeySchema)
+      .array(legacySectionKeySchema)
       .min(1)
       .max(5)
       .refine((items) => new Set(items).size === items.length, "Sections must be unique."),
@@ -219,7 +268,9 @@ export const profileConfigSchema = z
       })
       .strict(),
   })
-  .strict()
+  .strict();
+
+export const profileConfigV1Schema = profileConfigV1ObjectSchema
   .superRefine((config, context) => {
     for (const key of ["repositories", "skillGroups", "links"] as const) {
       const seen = new Set<string>();
@@ -237,15 +288,64 @@ export const profileConfigSchema = z
     }
   });
 
+export const profileConfigSchema = profileConfigV1ObjectSchema
+  .extend({
+    schemaVersion: z.literal(2),
+    template: z
+      .object({
+        id: templateIdSchema,
+        version: z.literal(1),
+      })
+      .strict(),
+    media: z.array(mediaItemSchema).max(6),
+    sections: z
+      .array(sectionKeySchema)
+      .min(1)
+      .max(6)
+      .refine((items) => new Set(items).size === items.length, "Sections must be unique."),
+    sectionHeadings: profileConfigV1ObjectSchema.shape.sectionHeadings
+      .extend({
+        media: z.string().trim().min(1).max(70),
+      })
+      .strict(),
+    appearance: profileConfigV1ObjectSchema.shape.appearance
+      .extend({
+        fontId: fontIdSchema,
+      })
+      .strict(),
+  })
+  .strict()
+  .superRefine((config, context) => {
+    for (const key of ["repositories", "skillGroups", "links", "media"] as const) {
+      const items = key === "media" ? config.media : config[key];
+      const seen = new Set<string>();
+      items.forEach((item, index) => {
+        const normalized = item.id.toLowerCase();
+        if (seen.has(normalized)) {
+          context.addIssue({
+            code: "custom",
+            path: [key, index, "id"],
+            message: "IDs must be unique within this collection.",
+          });
+        }
+        seen.add(normalized);
+      });
+    }
+  });
+
 export type ProfileConfig = z.infer<typeof profileConfigSchema>;
+export type ProfileConfigV1 = z.infer<typeof profileConfigV1Schema>;
 export type SectionKey = z.infer<typeof sectionKeySchema>;
+export type TemplateId = z.infer<typeof templateIdSchema>;
+export type FontId = z.infer<typeof fontIdSchema>;
 export type Repository = ProfileConfig["repositories"][number];
 export type SkillGroup = ProfileConfig["skillGroups"][number];
 export type ProfileLink = ProfileConfig["links"][number];
+export type MediaItem = ProfileConfig["media"][number];
 export type Palette = ProfileConfig["appearance"]["dark"];
 
 export const defaultProfileConfig: ProfileConfig = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   template: {
     id: "quality-control",
     version: 1,
@@ -347,6 +447,7 @@ export const defaultProfileConfig: ProfileConfig = {
       url: "https://github.com/TFQ0?tab=repositories",
     },
   ],
+  media: [],
   custom: {
     heading: "",
     markdown: "",
@@ -356,6 +457,7 @@ export const defaultProfileConfig: ProfileConfig = {
     repositories: "Selected work",
     skills: "Toolbox",
     links: "Open source",
+    media: "Gallery",
   },
   appearance: {
     dark: {
@@ -379,6 +481,7 @@ export const defaultProfileConfig: ProfileConfig = {
       accentSoft: "#DCEBDA",
     },
     cornerRadius: 18,
+    fontId: "modern",
   },
   accessibility: {
     language: "en",
@@ -438,12 +541,31 @@ export function parseProfileConfig(value: unknown): ProfileConfig {
     const version = (value as { schemaVersion?: unknown }).schemaVersion;
     switch (version) {
       case 1:
+        return migrateProfileConfigV1(profileConfigV1Schema.parse(value));
+      case 2:
         return profileConfigSchema.parse(value);
       default:
         throw new Error(`Unsupported profile configuration version: ${String(version)}.`);
     }
   }
   return profileConfigSchema.parse(value);
+}
+
+export function migrateProfileConfigV1(config: ProfileConfigV1): ProfileConfig {
+  const legacy = structuredClone(config);
+  return profileConfigSchema.parse({
+    ...legacy,
+    schemaVersion: 2,
+    media: [],
+    sectionHeadings: {
+      ...legacy.sectionHeadings,
+      media: "Gallery",
+    },
+    appearance: {
+      ...legacy.appearance,
+      fontId: "modern",
+    },
+  });
 }
 
 export function createId(prefix: string): string {

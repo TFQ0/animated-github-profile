@@ -11,16 +11,29 @@ interface PreviewProps {
 
 const MarkdownPreview = lazy(() => import("./MarkdownPreview"));
 
-function validHref(value: string): string {
-  if (value.startsWith("#")) return value;
+function safeHttpsUrl(value: string): string | null {
   try {
-    return new URL(value).protocol === "https:" ? value : "#";
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password ? url.href : null;
   } catch {
-    return "#";
+    return null;
   }
 }
 
-function PreviewSection({ config, section }: { config: ProfileConfig; section: SectionKey }) {
+function validHref(value: string): string {
+  if (value.startsWith("#")) return value;
+  return safeHttpsUrl(value) ?? "#";
+}
+
+function PreviewSection({
+  config,
+  section,
+  motion,
+}: {
+  config: ProfileConfig;
+  section: SectionKey;
+  motion: HeroVariant["motion"];
+}) {
   if (section === "about") {
     return (
       <section className="readme-section" id="preview-about">
@@ -100,6 +113,94 @@ function PreviewSection({ config, section }: { config: ProfileConfig; section: S
       </section>
     );
   }
+  if (section === "media") {
+    if (config.media.length === 0) return null;
+    return (
+      <section className="readme-section media-preview-section" id="preview-media">
+        <h2>{config.sectionHeadings.media}</h2>
+        <div className="media-preview-grid">
+          {config.media.map((item) => {
+            const primaryUrl = safeHttpsUrl(item.url);
+            const reducedMotionUrl = safeHttpsUrl(item.reducedMotionUrl);
+            const needsStaticFallback = motion === "static" && item.kind === "gif";
+            const imageUrl = needsStaticFallback ? reducedMotionUrl : primaryUrl;
+            const sourceUrl = safeHttpsUrl(item.attribution.sourceUrl);
+            const licenseUrl = safeHttpsUrl(item.attribution.licenseUrl);
+            const hasAttribution = Boolean(
+              item.attribution.sourceLabel ||
+              sourceUrl ||
+              item.attribution.licenseName ||
+              licenseUrl,
+            );
+            const hasDetails = Boolean(item.caption || hasAttribution);
+            const widthPercent = Math.min(100, Math.max(25, item.widthPercent));
+
+            return (
+              <figure
+                className={`media-preview-item media-preview-align-${item.align}`}
+                key={item.id}
+                style={{ width: `${widthPercent}%` }}
+              >
+                {imageUrl ? (
+                  <img
+                    className="media-preview-image"
+                    src={imageUrl}
+                    alt={item.alt}
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="media-preview-image-unavailable" role="img" aria-label={item.alt}>
+                    {needsStaticFallback && primaryUrl
+                      ? "Animated media hidden in static preview — add a reduced-motion image."
+                      : "Media preview unavailable"}
+                  </div>
+                )}
+                {hasDetails ? (
+                  <figcaption className="media-preview-details">
+                    {item.caption ? <span className="media-preview-caption">{item.caption}</span> : null}
+                    {hasAttribution ? (
+                      <span className="media-preview-attribution">
+                        {sourceUrl ? (
+                          <a
+                            href={sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            referrerPolicy="no-referrer"
+                          >
+                            {item.attribution.sourceLabel || "Source"}
+                          </a>
+                        ) : item.attribution.sourceLabel ? (
+                          <span>{item.attribution.sourceLabel}</span>
+                        ) : null}
+                        {(item.attribution.sourceLabel || sourceUrl) &&
+                        (item.attribution.licenseName || licenseUrl) ? (
+                          <span aria-hidden="true"> · </span>
+                        ) : null}
+                        {licenseUrl ? (
+                          <a
+                            href={licenseUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            referrerPolicy="no-referrer"
+                          >
+                            {item.attribution.licenseName || "License"}
+                          </a>
+                        ) : item.attribution.licenseName ? (
+                          <span>{item.attribution.licenseName}</span>
+                        ) : null}
+                      </span>
+                    ) : null}
+                  </figcaption>
+                ) : null}
+              </figure>
+            );
+          })}
+        </div>
+      </section>
+    );
+  }
   if (!config.custom.heading || !config.custom.markdown.trim()) return null;
   return (
     <section className="readme-section" id="preview-custom">
@@ -128,6 +229,7 @@ export function ProfilePreview({ config, variant, paused, replayKey }: PreviewPr
     if (section === "repositories") return config.repositories.length > 0;
     if (section === "skills") return config.skillGroups.length > 0;
     if (section === "links") return config.links.length > 0;
+    if (section === "media") return config.media.length > 0;
     if (section === "custom") return Boolean(config.custom.heading && config.custom.markdown.trim());
     return true;
   });
@@ -161,7 +263,7 @@ export function ProfilePreview({ config, variant, paused, replayKey }: PreviewPr
         </nav>
       ) : null}
       {config.sections.map((section) => (
-        <PreviewSection key={section} config={config} section={section} />
+        <PreviewSection key={section} config={config} section={section} motion={variant.motion} />
       ))}
       {config.footer.emphasis || config.footer.line ? (
         <footer className="readme-footer">
