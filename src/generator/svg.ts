@@ -14,7 +14,6 @@ export interface HeroVariant {
 interface Layout {
   width: number;
   height: number;
-  contentBottom: number;
   nameX: number;
   nameY: number;
   headlineX: number;
@@ -45,7 +44,6 @@ const layouts: Record<HeroViewport, Layout> = {
   desktop: {
     width: 1200,
     height: 610,
-    contentBottom: 546,
     nameX: 42,
     nameY: 129,
     headlineX: 38,
@@ -74,7 +72,6 @@ const layouts: Record<HeroViewport, Layout> = {
   mobile: {
     width: 620,
     height: 930,
-    contentBottom: 866,
     nameX: 30,
     nameY: 113,
     headlineX: 28,
@@ -305,7 +302,7 @@ export function renderHeroSvg(config: ProfileConfig, variant: HeroVariant): stri
         "The terminal types a command, completes demo checks, and repeats. Motion stops when reduced motion is preferred."
       : config.accessibility.staticDescription ||
         "A static completed illustration of the configured demo checks.";
-  const gridHeight = layout.contentBottom - 64;
+  const contentHeight = layout.footerDividerY - 64;
   const headerSignalX = variant.viewport === "desktop" ? 1073 : 493;
   const profileTextX = layout.width - 30;
   const headlineMaxWidth = variant.viewport === "desktop"
@@ -327,8 +324,8 @@ export function renderHeroSvg(config: ProfileConfig, variant: HeroVariant): stri
   </defs>
   ${styles(config, palette, variant, prefix, commandWidth)}
   <rect x=".5" y=".5" width="${layout.width - 1}" height="${layout.height - 1}" rx="${config.appearance.cornerRadius}" class="bg line"/>
-  <rect x="1" y="64" width="${layout.width - 2}" height="${gridHeight}" class="surface"/>
-  <rect x="1" y="64" width="${layout.width - 2}" height="${gridHeight}" fill="url(#${patternId})"/>
+  <rect x="1" y="64" width="${layout.width - 2}" height="${contentHeight}" class="surface"/>
+  <rect x="1" y="64" width="${layout.width - 2}" height="${contentHeight}" fill="url(#${patternId})"/>
   <path d="M1 64H${layout.width - 1}" class="line"/>
   <rect x="30" y="19" width="27" height="27" rx="5" class="soft"/>
   <path d="M36 27l5 5-5 5m9 0h6" stroke="${palette.accent}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>

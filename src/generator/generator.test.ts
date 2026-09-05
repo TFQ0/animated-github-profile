@@ -86,6 +86,26 @@ describe("profile artifact generation", () => {
     expect(new DOMParser().parseFromString(svg, "image/svg+xml").querySelector("parsererror")).toBeNull();
   });
 
+  it("keeps workflow labels inside the content surface above one footer boundary", () => {
+    const config = cloneDefaultConfig();
+
+    const desktop = renderHeroSvg(config, {
+      viewport: "desktop",
+      theme: "dark",
+      motion: "static",
+    });
+    const mobile = renderHeroSvg(config, {
+      viewport: "mobile",
+      theme: "dark",
+      motion: "static",
+    });
+
+    expect(desktop).toContain('<rect x="1" y="64" width="1198" height="503" class="surface"/>');
+    expect(desktop).toContain('<path d="M30 567H1170" class="line"/>');
+    expect(mobile).toContain('<rect x="1" y="64" width="618" height="823" class="surface"/>');
+    expect(mobile).toContain('<path d="M30 887H590" class="line"/>');
+  });
+
   it("keeps README asset references in sync with the generated files", () => {
     const artifacts = generateArtifacts(cloneDefaultConfig());
     const paths = new Set(artifacts.map((artifact) => artifact.path));
