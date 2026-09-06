@@ -238,14 +238,14 @@ export function ProfilePreview({ config, variant, paused, replayKey }: PreviewPr
 
   return (
     <article
-      className={`profile-preview profile-preview-${variant.viewport} ${paused ? "preview-paused" : ""}`}
+      className={`profile-preview ${paused ? "preview-paused" : ""}`}
       style={style}
       data-theme={variant.theme}
       lang={config.accessibility.language}
       dir={config.accessibility.direction}
     >
       <div
-        key={`${replayKey}-${variant.theme}-${variant.viewport}-${variant.motion}`}
+        key={`${replayKey}-${variant.theme}-${variant.motion}`}
         className="generated-hero"
         dangerouslySetInnerHTML={{ __html: hero }}
       />
