@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="610" viewBox="0 0 1200 610" fill="none" role="img" lang="en" dir="ltr" aria-labelledby="profile-quality-control-split-dark-desktop-title profile-quality-control-split-dark-desktop-desc" data-template="quality-control" data-composition="split" data-content-order="identity-first" data-shape-system="terminal" data-density="compact" data-pattern="grid" data-text-align="start" data-content-divider="477" data-footer-divider="567">
+  <title id="profile-quality-control-split-dark-desktop-title">Sample Builder | PROFILE LAB</title>
+  <desc id="profile-quality-control-split-dark-desktop-desc">Creative Developer. Imagine it. Build it. Share it. The terminal types a command, completes demo checks, and repeats. Motion stops when reduced motion is preferred. Decorative demonstration; not live results.</desc>
+  <defs>
+    <pattern id="profile-quality-control-split-dark-desktop-grid" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M0 .5H8M.5 0V8" stroke="#97ACAF" stroke-width=".5" opacity=".13"/></pattern>
+    <clipPath id="profile-quality-control-split-dark-desktop-command" clipPathUnits="userSpaceOnUse"><rect class="typed" width="220.79999999999998" height="30"/></clipPath>
+    <clipPath id="profile-quality-control-split-dark-desktop-content" clipPathUnits="userSpaceOnUse"><rect x="1" y="64" width="1198" height="503"/></clipPath>
+    <clipPath id="profile-quality-control-split-dark-desktop-frame" clipPathUnits="userSpaceOnUse"><rect width="1200" height="610" rx="2"/></clipPath>
+  </defs>
+  <style>
+    .bg{fill:#0C1418} .surface{fill:#111E24} .inner{fill:#0A1216}
+    .line{stroke:#26383E;stroke-width:1} .ink{fill:#ECF1ED}
+    .muted{fill:#97ACAF} .accent{fill:#ACF5C6} .soft{fill:#173B31}
+    .mono{font-family:'SFMono-Regular',Consolas,'Liberation Mono','Courier New',monospace}
+    .sans{font-family:'Segoe UI',Arial,Helvetica,sans-serif}
+    .pending,.running,.type-cursor,.trail,.boot-label{opacity:0}
+    .pass,.complete{opacity:1}
+    .typed{transform:scaleX(1);transform-origin:0 0}
+    
+    @media (prefers-reduced-motion:no-preference){
+      .typed{animation:profile-quality-control-split-dark-desktop-type-in 16s steps(23,end) infinite}
+      .type-cursor{animation:profile-quality-control-split-dark-desktop-cursor-position 16s steps(23,end) infinite}
+      .caret{animation:profile-quality-control-split-dark-desktop-blink 1s steps(1,end) infinite}
+      .complete{animation:profile-quality-control-split-dark-desktop-complete 16s linear infinite}
+      .boot-label{animation:profile-quality-control-split-dark-desktop-boot 16s linear infinite}
+      .trail{animation:profile-quality-control-split-dark-desktop-travel 16s linear infinite}
+      .signal{animation:profile-quality-control-split-dark-desktop-breathe 4s ease-in-out infinite}
+      .wait-1{animation:profile-quality-control-split-dark-desktop-wait-1 16s linear infinite}
+      .run-1{animation:profile-quality-control-split-dark-desktop-run-1 16s linear infinite}
+      .pass-1{animation:profile-quality-control-split-dark-desktop-pass-1 16s linear infinite}
+      .rail-1{animation:profile-quality-control-split-dark-desktop-rail-1 16s ease-in-out infinite}
+      .wait-2{animation:profile-quality-control-split-dark-desktop-wait-2 16s linear infinite}
+      .run-2{animation:profile-quality-control-split-dark-desktop-run-2 16s linear infinite}
+      .pass-2{animation:profile-quality-control-split-dark-desktop-pass-2 16s linear infinite}
+      .rail-2{animation:profile-quality-control-split-dark-desktop-rail-2 16s ease-in-out infinite}
+      .wait-3{animation:profile-quality-control-split-dark-desktop-wait-3 16s linear infinite}
+      .run-3{animation:profile-quality-control-split-dark-desktop-run-3 16s linear infinite}
+      .pass-3{animation:profile-quality-control-split-dark-desktop-pass-3 16s linear infinite}
+      .rail-3{animation:profile-quality-control-split-dark-desktop-rail-3 16s ease-in-out infinite}
+      .wait-4{animation:profile-quality-control-split-dark-desktop-wait-4 16s linear infinite}
+      .run-4{animation:profile-quality-control-split-dark-desktop-run-4 16s linear infinite}
+      .pass-4{animation:profile-quality-control-split-dark-desktop-pass-4 16s linear infinite}
+      .rail-4{animation:profile-quality-control-split-dark-desktop-rail-4 16s ease-in-out infinite}
+    }
+    @keyframes profile-quality-control-split-dark-desktop-type-in{0%,3%{transform:scaleX(0)}13%,96%{transform:scaleX(1)}99%,100%{transform:scaleX(0)}}
+    @keyframes profile-quality-control-split-dark-desktop-cursor-position{0%,3%{opacity:1;transform:translateX(0)}13%,14%{opacity:1;transform:translateX(220.79999999999998px)}15%,100%{opacity:0;transform:translateX(220.79999999999998px)}}
+    @keyframes profile-quality-control-split-dark-desktop-blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+    @keyframes profile-quality-control-split-dark-desktop-breathe{0%,100%{opacity:.45}50%{opacity:1}}
+    @keyframes profile-quality-control-split-dark-desktop-complete{0%,57%{opacity:0}58%,96%{opacity:1}99%,100%{opacity:0}}
+    @keyframes profile-quality-control-split-dark-desktop-boot{0%,56%{opacity:1}58%,96%{opacity:0}99%,100%{opacity:1}}
+    @keyframes profile-quality-control-split-dark-desktop-travel{0%,4%{opacity:0;stroke-dashoffset:1000}6%{opacity:.8}94%{opacity:.8;stroke-dashoffset:0}96%,100%{opacity:0;stroke-dashoffset:0}}
+    @keyframes profile-quality-control-split-dark-desktop-wait-1{0%,13.5%{opacity:1}14%,96%{opacity:0}99%,100%{opacity:1}}
+    @keyframes profile-quality-control-split-dark-desktop-run-1{0%,13.5%{opacity:0}14%,23.5%{opacity:1}24%,100%{opacity:0}}
+    @keyframes profile-quality-control-split-dark-desktop-pass-1{0%,23.5%{opacity:0}24%,96%{opacity:1}99%,100%{opacity:0}}
+    @keyframes profile-quality-control-split-dark-desktop-rail-1{0%,14%{transform:scaleX(0);opacity:0}14.5%{opacity:1}24%,96%{transform:scaleX(1);opacity:1}99%,100%{transform:scaleX(0);opacity:0}}
+    @keyframes profile-quality-control-split-dark-desktop-wait-2{0%,23.5%{opacity:1}24%,96%{opacity:0}99%,100%{opacity:1}}
+    @keyframes profile-quality-control-split-dark-desktop-run-2{0%,23.5%{opacity:0}24%,33.5%{opacity:1}34%,100%{opacity:0}}
+    @keyframes profile-quality-control-split-dark-desktop-pass-2{0%,33.5%{opacity:0}34%,96%{opacity:1}99%,100%{opacity:0}}
+    @keyframes profile-quality-control-split-dark-desktop-rail-2{0%,24%{transform:scaleX(0);opacity:0}24.5%{opacity:1}34%,96%{transform:scaleX(1);opacity:1}99%,100%{transform:scaleX(0);opacity:0}}
+    @keyframes profile-quality-control-split-dark-desktop-wait-3{0%,33.5%{opacity:1}34%,96%{opacity:0}99%,100%{opacity:1}}
+    @keyframes profile-quality-control-split-dark-desktop-run-3{0%,33.5%{opacity:0}34%,43.5%{opacity:1}44%,100%{opacity:0}}
+    @keyframes profile-quality-control-split-dark-desktop-pass-3{0%,43.5%{opacity:0}44%,96%{opacity:1}99%,100%{opacity:0}}
+    @keyframes profile-quality-control-split-dark-desktop-rail-3{0%,34%{transform:scaleX(0);opacity:0}34.5%{opacity:1}44%,96%{transform:scaleX(1);opacity:1}99%,100%{transform:scaleX(0);opacity:0}}
+    @keyframes profile-quality-control-split-dark-desktop-wait-4{0%,43.5%{opacity:1}44%,96%{opacity:0}99%,100%{opacity:1}}
+    @keyframes profile-quality-control-split-dark-desktop-run-4{0%,43.5%{opacity:0}44%,53.5%{opacity:1}54%,100%{opacity:0}}
+    @keyframes profile-quality-control-split-dark-desktop-pass-4{0%,53.5%{opacity:0}54%,96%{opacity:1}99%,100%{opacity:0}}
+    @keyframes profile-quality-control-split-dark-desktop-rail-4{0%,44%{transform:scaleX(0);opacity:0}44.5%{opacity:1}54%,96%{transform:scaleX(1);opacity:1}99%,100%{transform:scaleX(0);opacity:0}}
+    @media print{*{animation:none!important}.pending,.running,.type-cursor,.trail,.boot-label{opacity:0!important}.pass,.complete{opacity:1!important}}
+  </style>
+  <rect x=".5" y=".5" width="1199" height="609" rx="2" class="bg line"/>
+  <g clip-path="url(#profile-quality-control-split-dark-desktop-frame)">
+    <rect data-region="surface" x="1" y="64" width="1198" height="503" class="surface"/>
+    <rect x="1" y="64" width="1198" height="503" fill="url(#profile-quality-control-split-dark-desktop-grid)"/>
+  </g>
+  <g clip-path="url(#profile-quality-control-split-dark-desktop-content)" aria-hidden="true"><path data-decoration-shape="diamond" d="M216 138.54000000000002L232 154.54000000000002L216 170.54000000000002L200 154.54000000000002Z" fill="none" stroke="#26383E" stroke-width="2" opacity="0.55" transform="rotate(0 216 154.54000000000002)"/></g>
+  
+  
+  <path d="M1 64H1199" class="line"/>
+  <rect x="30" y="19" width="27" height="27" rx="5" class="soft"/>
+  <path d="M36 27l5 5-5 5m9 0h6" stroke="#ACF5C6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="70" y="38" class="mono ink" font-size="17" font-weight="700">SB</text>
+  <text x="131" y="38" class="mono muted" font-size="13">/ PROFILE LAB</text>
+  <circle cx="1073" cy="33" r="4" class="accent signal"/>
+  <text x="1170" y="38" class="mono muted" font-size="11" text-anchor="end" textLength="83" lengthAdjust="spacingAndGlyphs">FICTIONAL / 01</text>
+  <g data-region="identity" data-x="42" data-y="129" data-width="548" data-bottom="383.15999999999997">
+  <text x="42" y="129" class="mono accent" font-size="15" letter-spacing="2.4">FICTIONAL SAMPLE</text>
+  <text x="42" y="206" class="sans ink" font-size="58" font-weight="700" letter-spacing="-2.9">Imagine it.</text>
+<text x="42" y="262.58" class="sans ink" font-size="58" font-weight="700" letter-spacing="-2.9">Build it.</text>
+<text x="42" y="319.15999999999997" class="sans accent" font-size="58" font-weight="700" letter-spacing="-2.9">Share it.</text>
+  <text x="42" y="353.15999999999997" class="sans ink" font-size="21">Creative Developer</text>
+  <text x="42" y="377.15999999999997" class="sans muted" font-size="17">Open-source builder  /  Problem solver</text>
+  </g>
+  <g transform="translate(632 112)" data-region="terminal" data-x="632" data-y="112" data-width="528" data-height="326" data-terminal-style="minimal" data-command-baseline="68" data-row-start="91" data-row-gap="41" data-footer-divider="282">
+<rect x=".5" y=".5" width="527" height="325" rx="2" class="inner line"/><rect x="5.5" y="5.5" width="517" height="315" fill="none" class="line" opacity=".35"/>
+<path d="M0 27H528" class="line"/><text x="2" y="18" class="mono muted" font-size="11">sample-builder / studio</text>
+<text x="21" y="68" class="mono accent" font-size="16">$</text>
+<g transform="translate(46 47)"><g clip-path="url(#profile-quality-control-split-dark-desktop-command)"><text x="0" y="21" class="mono ink" font-size="16">./profile-preview --all</text></g><g class="type-cursor"><rect x="0" y="5" width="9.6" height="20" class="accent caret"/></g></g>
+<g data-terminal-row="0" data-row-y="91" data-rail-y="103"><text x="21" y="91" class="mono muted" font-size="12">01</text>
+<text x="58" y="91" class="mono ink" font-size="16">Profile content</text>
+<text x="505" y="91" class="mono muted pending wait-1" font-size="11" text-anchor="end">QUEUED</text>
+<text x="505" y="91" class="mono accent running run-1" font-size="11" text-anchor="end">RUNNING</text>
+<g class="pass pass-1"><path d="M440 85l4 4 8-9" stroke="#ACF5C6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><text x="505" y="91" class="mono accent" font-size="12" text-anchor="end">PASS</text></g>
+<path d="M58 103H506" stroke="#26383E" stroke-width="1"/>
+<g transform="translate(58 103)"><rect width="448" height="1" class="accent rail-1" style="transform-origin:0 0"/></g></g>
+<g data-terminal-row="1" data-row-y="132" data-rail-y="144"><text x="21" y="132" class="mono muted" font-size="12">02</text>
+<text x="58" y="132" class="mono ink" font-size="16">Responsive layout</text>
+<text x="505" y="132" class="mono muted pending wait-2" font-size="11" text-anchor="end">QUEUED</text>
+<text x="505" y="132" class="mono accent running run-2" font-size="11" text-anchor="end">RUNNING</text>
+<g class="pass pass-2"><path d="M440 126l4 4 8-9" stroke="#ACF5C6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><text x="505" y="132" class="mono accent" font-size="12" text-anchor="end">PASS</text></g>
+<path d="M58 144H506" stroke="#26383E" stroke-width="1"/>
+<g transform="translate(58 144)"><rect width="448" height="1" class="accent rail-2" style="transform-origin:0 0"/></g></g>
+<g data-terminal-row="2" data-row-y="173" data-rail-y="185"><text x="21" y="173" class="mono muted" font-size="12">03</text>
+<text x="58" y="173" class="mono ink" font-size="16">Project links</text>
+<text x="505" y="173" class="mono muted pending wait-3" font-size="11" text-anchor="end">QUEUED</text>
+<text x="505" y="173" class="mono accent running run-3" font-size="11" text-anchor="end">RUNNING</text>
+<g class="pass pass-3"><path d="M440 167l4 4 8-9" stroke="#ACF5C6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><text x="505" y="173" class="mono accent" font-size="12" text-anchor="end">PASS</text></g>
+<path d="M58 185H506" stroke="#26383E" stroke-width="1"/>
+<g transform="translate(58 185)"><rect width="448" height="1" class="accent rail-3" style="transform-origin:0 0"/></g></g>
+<g data-terminal-row="3" data-row-y="214" data-rail-y="226"><text x="21" y="214" class="mono muted" font-size="12">04</text>
+<text x="58" y="214" class="mono ink" font-size="16">Export bundle</text>
+<text x="505" y="214" class="mono muted pending wait-4" font-size="11" text-anchor="end">QUEUED</text>
+<text x="505" y="214" class="mono accent running run-4" font-size="11" text-anchor="end">RUNNING</text>
+<g class="pass pass-4"><path d="M440 208l4 4 8-9" stroke="#ACF5C6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><text x="505" y="214" class="mono accent" font-size="12" text-anchor="end">PASS</text></g>
+<path d="M58 226H506" stroke="#26383E" stroke-width="1"/>
+<g transform="translate(58 226)"><rect width="448" height="1" class="accent rail-4" style="transform-origin:0 0"/></g></g>
+<path d="M0 282H528" class="line"/>
+<g class="complete"><text x="22" y="309" class="mono accent" font-size="17">↳</text><text x="47" y="309" class="mono accent" font-size="13">Profile ready. Make it yours.</text></g>
+<g class="boot-label"><text x="22" y="309" class="mono muted" font-size="17">↳</text><text x="47" y="309" class="mono muted" font-size="13">Edit. Preview. Export.</text></g>
+</g>
+  <path d="M30 477H1170" class="line"/>
+  <g data-region="workflow" data-workflow-style="arcade-track"><text x="42" y="517" class="mono muted" font-size="12" letter-spacing="1">THE WORKFLOW</text><path d="M232 513H997" stroke="#26383E" stroke-width="3"/><path d="M232 513H997" stroke="#ACF5C6" stroke-width="2" stroke-dasharray="60 940" pathLength="1000" class="trail"/><g data-workflow-shape="square" data-workflow-row="0"><rect x="218" y="499" width="28" height="28" rx="2" class="bg line"/><text x="232" y="517" class="mono ink" font-size="10" text-anchor="middle">1</text><text x="232" y="551" class="mono ink" font-size="11" text-anchor="middle" letter-spacing=".8">PLAN</text></g>
+<g data-workflow-shape="square" data-workflow-row="0"><rect x="473" y="499" width="28" height="28" rx="2" class="bg line"/><text x="487" y="517" class="mono ink" font-size="10" text-anchor="middle">2</text><text x="487" y="551" class="mono ink" font-size="11" text-anchor="middle" letter-spacing=".8">BUILD</text></g>
+<g data-workflow-shape="square" data-workflow-row="0"><rect x="728" y="499" width="28" height="28" rx="2" class="bg line"/><text x="742" y="517" class="mono ink" font-size="10" text-anchor="middle">3</text><text x="742" y="551" class="mono ink" font-size="11" text-anchor="middle" letter-spacing=".8">PREVIEW</text></g>
+<g data-workflow-shape="square" data-workflow-row="0"><rect x="983" y="499" width="28" height="28" rx="2" class="bg line"/><text x="997" y="517" class="mono ink" font-size="10" text-anchor="middle">4</text><text x="997" y="551" class="mono ink" font-size="11" text-anchor="middle" letter-spacing=".8">SHARE</text></g></g>
+  <g data-region="footer"><path d="M30 567H1170" class="line"/>
+  <text x="30" y="592" class="mono muted" font-size="11" letter-spacing=".9">EDIT. PREVIEW. EXPORT.</text>
+  <text x="1170" y="592" class="mono muted" font-size="11" text-anchor="end" letter-spacing=".3">BUILT FOR YOUR GITHUB STORY.</text></g>
+</svg>
