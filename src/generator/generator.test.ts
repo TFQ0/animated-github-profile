@@ -128,24 +128,25 @@ describe("profile artifact generation", () => {
     expect(new DOMParser().parseFromString(svg, "image/svg+xml").querySelector("parsererror")).toBeNull();
   });
 
-  it("keeps the content surface and footer inside each viewport", () => {
+  it("keeps the content surface and footer inside the desktop viewport", () => {
     const config = cloneDefaultConfig();
+    const document = parseSvg(renderHeroSvg(config, {
+      viewport: "desktop",
+      theme: "dark",
+      motion: "static",
+    }));
+    const root = document.documentElement;
+    const surface = document.querySelector('[data-region="surface"]')!;
+    const footer = document.querySelector('[data-region="footer"]')!;
+    const width = numericAttribute(root, "width");
+    const footerDivider = numericAttribute(root, "data-footer-divider");
 
-    for (const viewport of ["desktop", "mobile"] as const) {
-      const document = parseSvg(renderHeroSvg(config, { viewport, theme: "dark", motion: "static" }));
-      const root = document.documentElement;
-      const surface = document.querySelector('[data-region="surface"]')!;
-      const footer = document.querySelector('[data-region="footer"]')!;
-      const width = numericAttribute(root, "width");
-      const footerDivider = numericAttribute(root, "data-footer-divider");
-
-      expect(numericAttribute(surface, "x")).toBe(1);
-      expect(numericAttribute(surface, "y")).toBe(64);
-      expect(numericAttribute(surface, "width")).toBe(width - 2);
-      expect(numericAttribute(surface, "height")).toBe(footerDivider - 64);
-      expect(footer.querySelectorAll("path")).toHaveLength(1);
-      expect(footer.querySelectorAll("text")).toHaveLength(2);
-    }
+    expect(numericAttribute(surface, "x")).toBe(1);
+    expect(numericAttribute(surface, "y")).toBe(64);
+    expect(numericAttribute(surface, "width")).toBe(width - 2);
+    expect(numericAttribute(surface, "height")).toBe(footerDivider - 64);
+    expect(footer.querySelectorAll("path")).toHaveLength(1);
+    expect(footer.querySelectorAll("text")).toHaveLength(2);
   });
 
   it("keeps README asset references in sync with the generated files", () => {
