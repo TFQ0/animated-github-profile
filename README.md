@@ -86,22 +86,5 @@ Run the complete verification pipeline:
 npm run typecheck
 npm test
 npm run build
-```
-
-## Architecture
-
-```text
-src/
-├── domain/
-│   ├── profile.ts       # strict v3 schema, defaults, and v1/v2 migration
-│   └── presets.ts       # trusted visual presets
-├── generator/
-│   ├── svg.ts           # four-variant desktop SVG renderer
-│   ├── readme.ts        # GitHub README renderer
-│   ├── escape.ts        # XML, Markdown, and URL safety boundaries
-│   └── artifacts.ts     # deterministic file and ZIP assembly
-├── services/github.ts   # optional public repository import
-├── components/          # editor fields and profile preview
-├── webmcp.ts            # agent-facing read and stage tools
-└── App.tsx              # editor state and workflows
+```            
 ```
