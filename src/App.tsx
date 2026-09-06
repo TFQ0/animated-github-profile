@@ -38,7 +38,6 @@ import type {
   HeroMotion,
   HeroTheme,
   HeroVariant,
-  HeroViewport,
 } from "./generator/svg";
 import {
   fetchPublicRepositories,
@@ -353,28 +352,28 @@ function contrastRatio(first: string, second: string): number | null {
 function getWarnings(config: ProfileConfig): string[] {
   const warnings: string[] = [];
   if (config.hero.headline.some((line) => line.length > 18)) {
-    warnings.push("A headline line may be tight on the mobile header.");
+    warnings.push("A headline line may be tight in compact desktop compositions.");
   }
   if (config.hero.command.length > 24) {
-    warnings.push("The terminal command may be clipped on smaller layouts.");
+    warnings.push("The terminal command may be clipped in narrow terminal panels.");
   }
   if (config.hero.checks.some((check) => check.length > 18)) {
-    warnings.push("A check label may overlap its status on mobile.");
+    warnings.push("A check label may overlap its status in narrow terminal panels.");
   }
   if (config.identity.secondaryRole.length > 40) {
-    warnings.push("The secondary role may be tight on mobile.");
+    warnings.push("The secondary role may be tight in narrower desktop compositions.");
   }
   if (config.identity.brandMark.length > 7 || config.identity.headerLabel.length > 20) {
     warnings.push("The header mark and label may compete for space.");
   }
   if (config.identity.profileLabel.length > 14) {
-    warnings.push("The profile badge may be tight in the mobile header.");
+    warnings.push("The profile badge may be tight in the header.");
   }
   if (config.identity.eyebrow.length > 24) {
-    warnings.push("The eyebrow name may be tight on mobile.");
+    warnings.push("The eyebrow name may be tight in the identity panel.");
   }
   if (config.hero.footerLeft.length > 24 || config.hero.footerRight.length > 34) {
-    warnings.push("A hero footer label may be clipped on mobile.");
+    warnings.push("A hero footer label may be clipped in its desktop column.");
   }
   const gifsWithoutFallback = config.media.filter(
     (item) => item.kind === "gif" && !item.reducedMotionUrl,
@@ -434,9 +433,7 @@ function sanitizedDownloadName(username: string): string {
 export default function App() {
   const [config, setConfig] = useState<ProfileConfig>(loadInitialConfig);
   const [activePanel, setActivePanel] = useState<PanelKey>("design");
-  const [mobilePane, setMobilePane] = useState<"edit" | "preview">("edit");
   const [theme, setTheme] = useState<HeroTheme>("dark");
-  const [viewport, setViewport] = useState<HeroViewport>("desktop");
   const [motion, setMotion] = useState<HeroMotion>(() =>
     window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "static" : "animated",
   );
@@ -453,7 +450,6 @@ export default function App() {
   const [showArchived, setShowArchived] = useState(false);
   const [designUndo, setDesignUndo] = useState<DesignSnapshot | null>(null);
   const configFileInput = useRef<HTMLInputElement>(null);
-  const editorPane = useRef<HTMLElement>(null);
   const editorScroll = useRef<HTMLDivElement>(null);
   const stepRail = useRef<HTMLElement>(null);
   const importAbortController = useRef<AbortController | null>(null);
@@ -477,7 +473,7 @@ export default function App() {
     ],
     [config.sections],
   );
-  const variant: HeroVariant = { theme, viewport, motion };
+  const variant: HeroVariant = { theme, motion };
 
   const activePanelIndex = panels.findIndex((panel) => panel.key === activePanel);
   const activePanelDetails = panels[activePanelIndex] ?? panels[0]!;
@@ -489,20 +485,6 @@ export default function App() {
       stepRail.current
         ?.querySelector<HTMLElement>(`#step-${panel}`)
         ?.scrollIntoView({ block: "nearest", inline: "nearest" });
-      if (window.matchMedia("(max-width: 1050px)").matches) {
-        const switchHeight = document.querySelector<HTMLElement>(".mobile-view-switch")?.offsetHeight ?? 0;
-        const railHeight = stepRail.current?.offsetHeight ?? 0;
-        const editorTop = editorPane.current?.offsetTop ?? 0;
-        window.scrollTo({ top: Math.max(0, editorTop - switchHeight - railHeight) });
-      }
-    });
-  }
-
-  function selectMobilePane(pane: "edit" | "preview") {
-    setMobilePane(pane);
-    window.requestAnimationFrame(() => {
-      if (window.matchMedia("(max-width: 1050px)").matches) window.scrollTo({ top: 0 });
-      document.getElementById(pane === "edit" ? "editor-heading" : "preview-heading")?.focus();
     });
   }
 
@@ -939,12 +921,7 @@ export default function App() {
         </div>
       </header>
 
-      <div className="mobile-view-switch" role="group" aria-label="Workspace view">
-        <button type="button" aria-controls="editor-pane" aria-pressed={mobilePane === "edit"} onClick={() => selectMobilePane("edit")}>Edit</button>
-        <button type="button" aria-controls="preview-pane" aria-pressed={mobilePane === "preview"} onClick={() => selectMobilePane("preview")}>Preview</button>
-      </div>
-
-      <main className={`studio-workspace mobile-pane-${mobilePane}`}>
+      <main className="studio-workspace">
         <nav ref={stepRail} className="step-rail" aria-label="Profile builder steps">
           <div className="step-rail-heading">
             <span>Build flow</span>
@@ -986,7 +963,7 @@ export default function App() {
           </div>
         </nav>
 
-        <aside ref={editorPane} id="editor-pane" className="editor-pane" aria-labelledby="editor-heading">
+        <aside id="editor-pane" className="editor-pane" aria-labelledby="editor-heading">
           <div className="editor-intro">
             <div>
               <span className="workspace-eyebrow">STEP {activePanelDetails.short} / {panels.length}</span>
@@ -1001,7 +978,7 @@ export default function App() {
               <>
                 <EditorCard
                   title="Choose a design"
-                  eyebrow="Distinct responsive templates"
+                  eyebrow="Distinct desktop templates"
                   actions={designUndo ? (
                     <button
                       className="text-button"
@@ -1076,8 +1053,8 @@ export default function App() {
                     })}
                   </div>
                 </EditorCard>
-                <EditorCard title="Custom layout" eyebrow="Responsive composition controls">
-                  <p className="card-intro">Build your own arrangement from safe layout rules. Desktop and mobile coordinates are calculated automatically.</p>
+                <EditorCard title="Custom layout" eyebrow="Desktop composition controls">
+                  <p className="card-intro">Build your own desktop arrangement from safe layout rules.</p>
                   <div className="field-grid">
                     <SelectField
                       label="Composition"
@@ -1131,7 +1108,7 @@ export default function App() {
                       })}
                     />
                   </div>
-                  <p className="privacy-note"><span aria-hidden="true">●</span> These controls never inject CSS or SVG markup; they select trusted responsive renderers.</p>
+                  <p className="privacy-note"><span aria-hidden="true">●</span> These controls never inject CSS or SVG markup; they select trusted desktop renderers.</p>
                   <button
                     className="button button-secondary button-full"
                     type="button"
@@ -1658,22 +1635,21 @@ export default function App() {
           <div className="preview-toolbar">
             <div className="preview-title">
               <h2 id="preview-heading" tabIndex={-1}>Live preview</h2>
-              <strong>{viewport} / {theme} / {motion}</strong>
+              <strong>desktop / {theme} / {motion}</strong>
             </div>
             <div className="preview-controls">
               <div className="preview-options">
                 <label className="preview-select"><span>Theme</span><select value={theme} onChange={(event) => setTheme(event.target.value as HeroTheme)}><option value="dark">Dark</option><option value="light">Light</option></select></label>
-                <label className="preview-select"><span>Size</span><select value={viewport} onChange={(event) => setViewport(event.target.value as HeroViewport)}><option value="desktop">Desktop</option><option value="mobile">Mobile</option></select></label>
                 <label className="preview-select"><span>Motion</span><select value={motion} onChange={(event) => { setMotion(event.target.value as HeroMotion); setPaused(false); }}><option value="animated">Animated</option><option value="static">Static</option></select></label>
               </div>
               <div className="preview-actions">
-                <button className="toolbar-button toolbar-button-download" type="button" onClick={downloadCurrentHero} aria-label={`Download current ${theme} ${viewport} ${motion} SVG image`}>Save SVG</button>
+                <button className="toolbar-button toolbar-button-download" type="button" onClick={downloadCurrentHero} aria-label={`Download current desktop ${theme} ${motion} SVG image`}>Save SVG</button>
                 {motion === "animated" ? <button className="toolbar-button" type="button" onClick={() => setPaused((value) => !value)}>{paused ? "Resume" : "Pause"}</button> : null}
                 {motion === "animated" ? <button className="toolbar-button" type="button" onClick={() => { setReplayKey((value) => value + 1); setPaused(false); }}>Replay</button> : null}
               </div>
             </div>
           </div>
-          <div className={`preview-stage preview-stage-${viewport}`}>
+          <div className="preview-stage">
             <div className="preview-warning-strip" hidden={warnings.length === 0}><span>{warnings.length}</span> review note{warnings.length === 1 ? "" : "s"} — open Export before publishing.</div>
             <ProfilePreview config={config} variant={variant} paused={paused} replayKey={replayKey} />
           </div>

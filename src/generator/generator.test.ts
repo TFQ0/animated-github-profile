@@ -59,21 +59,17 @@ describe("profile artifact generation", () => {
     const second = generateArtifacts(config);
 
     expect(first).toEqual(second);
-    expect(first).toHaveLength(11);
-    expect(new Set(first.map((artifact) => artifact.path)).size).toBe(11);
-    expect(first.filter((artifact) => artifact.path.endsWith(".svg"))).toHaveLength(8);
+    expect(first).toHaveLength(7);
+    expect(new Set(first.map((artifact) => artifact.path)).size).toBe(7);
+    expect(first.filter((artifact) => artifact.path.endsWith(".svg"))).toHaveLength(4);
     expect(first.map((artifact) => artifact.path)).toEqual([
       "README.md",
       "profile.config.json",
       "SETUP.md",
       "assets/profile-header-dark.svg",
       "assets/profile-header-light.svg",
-      "assets/profile-header-mobile-dark.svg",
-      "assets/profile-header-mobile-light.svg",
       "assets/profile-header-dark-static.svg",
       "assets/profile-header-light-static.svg",
-      "assets/profile-header-mobile-dark-static.svg",
-      "assets/profile-header-mobile-light-static.svg",
     ]);
   });
 
@@ -119,7 +115,6 @@ describe("profile artifact generation", () => {
     config.hero.headline = ["W".repeat(24), "W".repeat(24), "W".repeat(24)];
     const valid = profileConfigSchema.parse(config);
     const svg = renderHeroSvg(valid, {
-      viewport: "mobile",
       theme: "dark",
       motion: "static",
     });
@@ -128,10 +123,9 @@ describe("profile artifact generation", () => {
     expect(new DOMParser().parseFromString(svg, "image/svg+xml").querySelector("parsererror")).toBeNull();
   });
 
-  it("keeps the content surface and footer inside the desktop viewport", () => {
+  it("keeps the content surface and footer inside the desktop canvas", () => {
     const config = cloneDefaultConfig();
     const document = parseSvg(renderHeroSvg(config, {
-      viewport: "desktop",
       theme: "dark",
       motion: "static",
     }));
@@ -157,8 +151,8 @@ describe("profile artifact generation", () => {
       (match) => match[1]!,
     );
 
-    expect(references).toHaveLength(9);
-    expect(new Set(references).size).toBe(8);
+    expect(references).toHaveLength(5);
+    expect(new Set(references).size).toBe(4);
     for (const reference of references) expect(paths.has(reference)).toBe(true);
   });
 
@@ -333,7 +327,6 @@ describe("profile artifact generation", () => {
         expect(svg).not.toMatch(/(?:href|src)=["']https?:/i);
       }
       const signatureSvg = renderHeroSvg(applied, {
-        viewport: "desktop",
         theme: "dark",
         motion: "static",
       });
@@ -363,42 +356,39 @@ describe("profile artifact generation", () => {
     const densities = ["compact", "comfortable", "spacious"] as const;
     const contentOrders = ["identity-first", "terminal-first"] as const;
     const workflowStyles = ["cards", "command-chain"] as const;
-    const viewports = ["desktop", "mobile"] as const;
 
     for (const composition of compositions) {
       for (const density of densities) {
         for (const contentOrder of contentOrders) {
           for (const style of workflowStyles) {
-            for (const viewport of viewports) {
-              for (let stepCount = 2; stepCount <= 6; stepCount += 1) {
-                const config = cloneDefaultConfig();
-                config.layout = { ...config.layout, composition, density, contentOrder };
-                config.hero.workflow = {
-                  style,
-                  steps: Array.from({ length: stepCount }, (_, index) => ({
-                    id: `workflow-${index + 1}`,
-                    label: `STEP ${index + 1}`,
-                    shape: "auto" as const,
-                  })),
-                };
-                const valid = profileConfigSchema.parse(config);
-                const document = parseSvg(renderHeroSvg(valid, { viewport, theme: "dark", motion: "static" }));
-                const root = document.documentElement;
-                const width = numericAttribute(root, "width");
-                const footerDivider = numericAttribute(root, "data-footer-divider");
-                const items = [...document.querySelectorAll('[data-workflow-width]')];
+            for (let stepCount = 2; stepCount <= 6; stepCount += 1) {
+              const config = cloneDefaultConfig();
+              config.layout = { ...config.layout, composition, density, contentOrder };
+              config.hero.workflow = {
+                style,
+                steps: Array.from({ length: stepCount }, (_, index) => ({
+                  id: `workflow-${index + 1}`,
+                  label: `STEP ${index + 1}`,
+                  shape: "auto" as const,
+                })),
+              };
+              const valid = profileConfigSchema.parse(config);
+              const document = parseSvg(renderHeroSvg(valid, { theme: "dark", motion: "static" }));
+              const root = document.documentElement;
+              const width = numericAttribute(root, "width");
+              const footerDivider = numericAttribute(root, "data-footer-divider");
+              const items = [...document.querySelectorAll('[data-workflow-width]')];
 
-                expect(items, `${composition}/${density}/${contentOrder}/${style}/${viewport}/${stepCount}`).toHaveLength(stepCount);
-                for (const item of items) {
-                  const x = numericAttribute(item, "data-workflow-x");
-                  const y = numericAttribute(item, "data-workflow-y");
-                  const itemWidth = numericAttribute(item, "data-workflow-width");
-                  const itemHeight = numericAttribute(item, "data-workflow-height");
-                  expect(x).toBeGreaterThanOrEqual(30);
-                  expect(x + itemWidth).toBeLessThanOrEqual(width - 30);
-                  expect(y).toBeGreaterThanOrEqual(64);
-                  expect(y + itemHeight).toBeLessThanOrEqual(footerDivider - 6);
-                }
+              expect(items, `${composition}/${density}/${contentOrder}/${style}/${stepCount}`).toHaveLength(stepCount);
+              for (const item of items) {
+                const x = numericAttribute(item, "data-workflow-x");
+                const y = numericAttribute(item, "data-workflow-y");
+                const itemWidth = numericAttribute(item, "data-workflow-width");
+                const itemHeight = numericAttribute(item, "data-workflow-height");
+                expect(x).toBeGreaterThanOrEqual(30);
+                expect(x + itemWidth).toBeLessThanOrEqual(width - 30);
+                expect(y).toBeGreaterThanOrEqual(64);
+                expect(y + itemHeight).toBeLessThanOrEqual(footerDivider - 6);
               }
             }
           }
@@ -412,51 +402,48 @@ describe("profile artifact generation", () => {
     const densities = ["compact", "comfortable", "spacious"] as const;
     const contentOrders = ["identity-first", "terminal-first"] as const;
     const terminalStyles = ["window", "panel", "minimal"] as const;
-    const viewports = ["desktop", "mobile"] as const;
 
     for (const composition of compositions) {
       for (const density of densities) {
         for (const contentOrder of contentOrders) {
           for (const terminalStyle of terminalStyles) {
-            for (const viewport of viewports) {
-              const config = cloneDefaultConfig();
-              config.layout = { ...config.layout, composition, density, contentOrder, terminalStyle };
-              const document = parseSvg(renderHeroSvg(config, { viewport, theme: "dark", motion: "static" }));
-              const root = document.documentElement;
-              const terminal = document.querySelector('[data-region="terminal"]')!;
-              const width = numericAttribute(root, "width");
-              const height = numericAttribute(root, "height");
-              const x = numericAttribute(terminal, "data-x");
-              const y = numericAttribute(terminal, "data-y");
-              const terminalWidth = numericAttribute(terminal, "data-width");
-              const terminalHeight = numericAttribute(terminal, "data-height");
-              const commandBaseline = numericAttribute(terminal, "data-command-baseline");
-              const rowStart = numericAttribute(terminal, "data-row-start");
-              const footerDivider = numericAttribute(terminal, "data-footer-divider");
-              const lastRow = document.querySelector('[data-terminal-row="3"]')!;
-              const lastRail = numericAttribute(lastRow, "data-rail-y");
+            const config = cloneDefaultConfig();
+            config.layout = { ...config.layout, composition, density, contentOrder, terminalStyle };
+            const document = parseSvg(renderHeroSvg(config, { theme: "dark", motion: "static" }));
+            const root = document.documentElement;
+            const terminal = document.querySelector('[data-region="terminal"]')!;
+            const width = numericAttribute(root, "width");
+            const height = numericAttribute(root, "height");
+            const x = numericAttribute(terminal, "data-x");
+            const y = numericAttribute(terminal, "data-y");
+            const terminalWidth = numericAttribute(terminal, "data-width");
+            const terminalHeight = numericAttribute(terminal, "data-height");
+            const commandBaseline = numericAttribute(terminal, "data-command-baseline");
+            const rowStart = numericAttribute(terminal, "data-row-start");
+            const footerDivider = numericAttribute(terminal, "data-footer-divider");
+            const lastRow = document.querySelector('[data-terminal-row="3"]')!;
+            const lastRail = numericAttribute(lastRow, "data-rail-y");
 
-              expect(x).toBeGreaterThanOrEqual(0);
-              expect(y).toBeGreaterThanOrEqual(64);
-              expect(x + terminalWidth).toBeLessThanOrEqual(width);
-              expect(y + terminalHeight).toBeLessThanOrEqual(height);
-              expect(rowStart - commandBaseline).toBeGreaterThanOrEqual(22);
-              expect(lastRail).toBeLessThanOrEqual(footerDivider - 5);
-            }
+            expect(x).toBeGreaterThanOrEqual(0);
+            expect(y).toBeGreaterThanOrEqual(64);
+            expect(x + terminalWidth).toBeLessThanOrEqual(width);
+            expect(y + terminalHeight).toBeLessThanOrEqual(height);
+            expect(rowStart - commandBaseline).toBeGreaterThanOrEqual(22);
+            expect(lastRail).toBeLessThanOrEqual(footerDivider - 5);
           }
         }
       }
     }
   });
 
-  it("keeps content order consistent and stacked content separated", () => {
+  it("keeps desktop content order consistent and stacked content separated", () => {
     const horizontalCompositions = ["split", "terminal-focus", "hud-grid", "bento"] as const;
 
     for (const composition of horizontalCompositions) {
       for (const contentOrder of ["identity-first", "terminal-first"] as const) {
         const config = cloneDefaultConfig();
         config.layout = { ...config.layout, composition, contentOrder };
-        const document = parseSvg(renderHeroSvg(config, { viewport: "desktop", theme: "dark", motion: "static" }));
+        const document = parseSvg(renderHeroSvg(config, { theme: "dark", motion: "static" }));
         const identity = document.querySelector('[data-region="identity"]')!;
         const terminal = document.querySelector('[data-region="terminal"]')!;
         const identityX = numericAttribute(identity, "data-x");
@@ -467,11 +454,11 @@ describe("profile artifact generation", () => {
       }
     }
 
-    for (const composition of ["split", "stacked", "terminal-focus", "hud-grid", "bento", "poster"] as const) {
+    for (const composition of ["stacked", "poster"] as const) {
       for (const contentOrder of ["identity-first", "terminal-first"] as const) {
         const config = cloneDefaultConfig();
         config.layout = { ...config.layout, composition, contentOrder };
-        const document = parseSvg(renderHeroSvg(config, { viewport: "mobile", theme: "dark", motion: "static" }));
+        const document = parseSvg(renderHeroSvg(config, { theme: "dark", motion: "static" }));
         const identityY = numericAttribute(document.querySelector('[data-region="identity"]')!, "data-y");
         const terminalY = numericAttribute(document.querySelector('[data-region="terminal"]')!, "data-y");
 
@@ -483,24 +470,21 @@ describe("profile artifact generation", () => {
     for (const density of ["compact", "comfortable", "spacious"] as const) {
       const config = cloneDefaultConfig();
       config.layout = { ...config.layout, composition: "stacked", contentOrder: "identity-first", density };
-      const document = parseSvg(renderHeroSvg(config, { viewport: "desktop", theme: "dark", motion: "static" }));
+      const document = parseSvg(renderHeroSvg(config, { theme: "dark", motion: "static" }));
       const identityBottom = numericAttribute(document.querySelector('[data-region="identity"]')!, "data-bottom");
       const terminalTop = numericAttribute(document.querySelector('[data-region="terminal"]')!, "data-y");
       expect(identityBottom).toBeLessThan(terminalTop);
     }
   });
 
-  it("keeps HUD separators in desktop gaps and removes them from vertical mobile layouts", () => {
+  it("keeps HUD separators inside desktop composition gaps", () => {
     for (const contentOrder of ["identity-first", "terminal-first"] as const) {
       const config = cloneDefaultConfig();
       config.layout = { ...config.layout, composition: "hud-grid", contentOrder };
-      const desktop = parseSvg(renderHeroSvg(config, { viewport: "desktop", theme: "dark", motion: "static" }));
-      const separator = desktop.querySelector('[data-hud-separator="true"]')!;
+      const document = parseSvg(renderHeroSvg(config, { theme: "dark", motion: "static" }));
+      const separator = document.querySelector('[data-hud-separator="true"]')!;
       const coordinates = separator.getAttribute("d")!.match(/M([\d.]+) 88L([\d.]+)/)!;
       expect(Math.abs(Number(coordinates[2]) - Number(coordinates[1]))).toBeLessThan(100);
-
-      const mobile = parseSvg(renderHeroSvg(config, { viewport: "mobile", theme: "dark", motion: "static" }));
-      expect(mobile.querySelector('[data-hud-separator="true"]')).toBeNull();
     }
   });
 
@@ -538,7 +522,7 @@ describe("profile artifact generation", () => {
     const svg = renderHeroSvg(valid, heroVariants[0]!);
     expect(svg).not.toContain("cdn.example.com");
     const artifacts = generateArtifacts(valid);
-    expect(artifacts).toHaveLength(11);
+    expect(artifacts).toHaveLength(7);
     expect(artifacts.some((artifact) => artifact.path.includes("featured-animation"))).toBe(false);
   });
 

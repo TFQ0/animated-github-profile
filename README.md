@@ -12,11 +12,11 @@ After GitHub Pages is enabled, the hosted Studio is available at:
 
 Configuration v3 provides seven templates: Quality Control, Classic Terminal, Retro Arcade, Anime HUD, Bento Grid, Signal Poster, and Custom Canvas. The templates use generic, original interface elements and include no franchise characters, logos, or copied artwork.
 
-The templates are more than palette swaps: they provide structurally distinct compositions that adapt independently to desktop and mobile output. Custom Canvas uses the same validated rendering system and offers constrained layout controls rather than unrestricted canvas editing.
+The templates are more than palette swaps: they provide structurally distinct desktop compositions. Custom Canvas uses the same validated rendering system and offers constrained layout controls rather than unrestricted canvas editing.
 
 The customization contract includes:
 
-- Responsive composition, alignment, spacing, and placement choices within safe layout bounds.
+- Desktop composition, alignment, spacing, and placement choices within safe layout bounds.
 - Two to six workflow steps, with an allowlisted safe shape selected for each step.
 - Decorative shapes described through a bounded SVG-safe DSL. The renderer converts validated shape data into SVG; users cannot insert arbitrary SVG elements or path commands.
 - Curated font presets that map to controlled, SVG-safe system font stacks.
@@ -28,26 +28,28 @@ The editor does not accept arbitrary raw CSS, SVG markup, SVG paths, or remote f
 
 ## What it includes
 
-- Live desktop and mobile preview in dark and light themes.
+- Live desktop preview in dark and light themes.
 - Animated and reduced-motion/static SVG variants.
-- Seven structurally distinct responsive templates plus constrained custom layout controls.
+- Seven structurally distinct desktop templates plus constrained custom layout controls.
 - Design, font, profile, hero, workflow-step shape, decorative shape, project, skill, link, structured media, palette, section, Markdown, and footer editing.
 - Optional public GitHub repository import with no login or token.
 - Local autosave of the last valid configuration.
 - Versioned `profile.config.json` import/export.
 - One-click download of the currently previewed SVG variant without creating a ZIP.
-- Deterministic ZIP generation containing `README.md`, setup guidance, the saved config, and all eight SVG assets.
+- Deterministic ZIP generation containing `README.md`, setup guidance, the saved config, and all four desktop SVG assets.
 - Strict runtime validation, HTTPS-only generated links, contextual XML/Markdown escaping, and self-contained SVG output.
 - WebMCP tools for agents to read or stage the same configuration used by the visible editor.
+
+The Studio targets desktop browser widths of 1180 px or wider. Every generated hero variant uses a fixed 1200 × 610 desktop canvas.
 
 ## Use the studio
 
 1. Open the app and choose one of the seven templates, then adjust its constrained layout controls if desired.
 2. Select **Start a blank profile** or customize the clearly labeled fictional sample.
 3. Work through Profile, Hero, workflow steps and shapes, Projects, Skills, Links, Media, Colors, and Sections.
-4. Check the desktop/mobile, dark/light, and animated/static previews. Responsive compositions can adapt between desktop and mobile rather than preserving identical coordinates.
+4. Check the desktop preview in dark/light and animated/static modes.
 5. Resolve validation errors and review any design warnings in Export.
-6. To keep only the image, choose its desktop/mobile, dark/light, and animated/static options, then select **Download SVG**.
+6. To keep only the image, choose its dark/light and animated/static options, then select **Download SVG**.
 7. To publish the complete profile, download the ZIP instead.
 8. Upload its `README.md` and `assets/` directory to the public GitHub repository whose name exactly matches your username.
 
@@ -104,7 +106,7 @@ src/
 ├── domain/profile.ts       # strict v3 config plus v1/v2 migration
 ├── domain/presets.ts       # trusted template defaults and visual presets
 ├── generator/
-│   ├── svg.ts              # pure eight-variant SVG renderer
+│   ├── svg.ts              # pure four-variant desktop SVG renderer
 │   ├── readme.ts           # GitHub README renderer
 │   ├── escape.ts           # XML/Markdown/URL safety boundaries
 │   └── artifacts.ts        # deterministic file and ZIP assembly
@@ -114,7 +116,7 @@ src/
 └── App.tsx                 # editor state and workflows
 ```
 
-`ProfileConfig` is the single source of truth. The visible preview, README source, SVG files, saved config, and ZIP are all produced from the same validated object. Template, responsive layout, workflow-shape, and decorative-shape values are resolved through trusted renderer registries. Imported GitHub data becomes an editable snapshot; it is never a hidden dependency of later exports.
+`ProfileConfig` is the single source of truth. The visible preview, README source, SVG files, saved config, and ZIP are all produced from the same validated object. Template, desktop layout, workflow-shape, and decorative-shape values are resolved through trusted renderer registries. Imported GitHub data becomes an editable snapshot; it is never a hidden dependency of later exports.
 
 ## Privacy and output safety
 

@@ -526,7 +526,7 @@ export const defaultProfileConfig: ProfileConfig = {
   hero: {
     headline: ["Imagine it.", "Build it.", "Share it."],
     command: "./profile-preview --all",
-    checks: ["Profile content", "Responsive layout", "Project links", "Export bundle"],
+    checks: ["Profile content", "Desktop layout", "Project links", "Export bundle"],
     completionMessage: "Profile ready. Make it yours.",
     idleMessage: "Edit. Preview. Export.",
     labels: {

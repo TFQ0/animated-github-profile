@@ -14,10 +14,6 @@ describe("Profile Studio workspace", () => {
       configurable: true,
       value: vi.fn().mockReturnValue({ matches: false }),
     });
-    Object.defineProperty(window, "scrollTo", {
-      configurable: true,
-      value: vi.fn(),
-    });
     Object.defineProperty(window, "requestAnimationFrame", {
       configurable: true,
       value: (callback: FrameRequestCallback) => {
@@ -62,15 +58,17 @@ describe("Profile Studio workspace", () => {
     );
   });
 
-  it("keeps edit and preview panes connected to the responsive switch", () => {
-    const previewSwitch = Array.from(container.querySelectorAll<HTMLButtonElement>(".mobile-view-switch button"))
-      .find((button) => button.textContent === "Preview")!;
+  it("exposes a desktop-only preview", () => {
+    const previewOptions = Array.from(container.querySelectorAll(".preview-select > span"))
+      .map((label) => label.textContent);
+    const hero = container.querySelector(".generated-hero svg")!;
 
-    expect(previewSwitch.getAttribute("aria-controls")).toBe("preview-pane");
-    act(() => previewSwitch.click());
-
-    expect(previewSwitch.getAttribute("aria-pressed")).toBe("true");
-    expect(container.querySelector("main")?.classList.contains("mobile-pane-preview")).toBe(true);
+    expect(previewOptions).toEqual(["Theme", "Motion"]);
+    expect(container.querySelector(".preview-title strong")?.textContent).toBe(
+      "desktop / dark / animated",
+    );
+    expect(hero.getAttribute("width")).toBe("1200");
+    expect(hero.getAttribute("height")).toBe("610");
     expect(container.querySelector("#preview-pane")?.getAttribute("aria-labelledby")).toBe(
       "preview-heading",
     );
