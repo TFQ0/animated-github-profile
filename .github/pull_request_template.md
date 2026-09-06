@@ -2,7 +2,7 @@
 
 <!-- Explain what changed and why. Keep this focused on the user-visible or technical outcome. -->
 
-Example: Fix static exports so they use the selected desktop composition.
+Example: Fix mobile static exports so they use the selected responsive composition.
 
 ## Related issue
 
@@ -24,7 +24,7 @@ Closes #
 - [ ] `npm run typecheck`
 - [ ] `npm test`
 - [ ] `npm run build`
-- [ ] Relevant desktop dark/light and animated/static variants were inspected
+- [ ] Relevant desktop/mobile, dark/light, and animated/static variants were inspected
 
 Additional verification:
 

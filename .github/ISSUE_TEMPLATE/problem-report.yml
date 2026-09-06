@@ -12,7 +12,7 @@ body:
     attributes:
       label: BUG
       description: Describe what went wrong and what you were trying to do.
-      placeholder: I selected the static preview, but the exported SVG...
+      placeholder: I selected the mobile preview, but the exported SVG...
     validations:
       required: true
 
@@ -24,7 +24,7 @@ body:
       placeholder: |
         1. Open the Studio.
         2. Select the Bento Grid template.
-        3. Change the preview to light and static.
+        3. Change the preview to mobile and static.
         4. Select Download SVG.
     validations:
       required: true
