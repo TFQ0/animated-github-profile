@@ -1,0 +1,63 @@
+name: BUG report
+description: Report something that is broken or behaves unexpectedly.
+title: "[BUG]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Animated GitHub Profile Studio. Please search existing issues before submitting a report.
+
+  - type: textarea
+    id: BUG
+    attributes:
+      label: BUG
+      description: Describe what went wrong and what you were trying to do.
+      placeholder: I selected the mobile preview, but the exported SVG...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Give the smallest reliable sequence that shows the BUG.
+      placeholder: |
+        1. Open the Studio.
+        2. Select the Bento Grid template.
+        3. Change the preview to mobile and static.
+        4. Select Download SVG.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include the browser, operating system, app version or commit, and whether you used the hosted or local Studio.
+      placeholder: Chrome 140, Windows 11, hosted Studio
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Additional evidence
+      description: Add screenshots, exported configuration, console errors, or other useful context. Remove personal or sensitive data first.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues for the same BUG.
+          required: true
+        - label: I removed tokens, private data, and other sensitive information.
+          required: true

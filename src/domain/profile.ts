@@ -521,7 +521,7 @@ export const defaultProfileConfig: ProfileConfig = {
     profileLabel: "FICTIONAL / 01",
     eyebrow: "FICTIONAL SAMPLE",
     primaryRole: "Creative Developer",
-    secondaryRole: "Open-source builder  /  Problem solver",
+    secondaryRole: "Open-source builder  /  BUG solver",
   },
   hero: {
     headline: ["Imagine it.", "Build it.", "Share it."],
