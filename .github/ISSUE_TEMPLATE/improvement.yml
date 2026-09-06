@@ -1,0 +1,55 @@
+name: Improvement proposal
+description: Suggest a better version of existing behavior, design, or documentation.
+title: "[Improvement]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form when something already exists but could work better. For entirely new behavior, use the function request form.
+
+  - type: textarea
+    id: current
+    attributes:
+      label: Current experience
+      description: What currently works, and where does it fall short?
+      placeholder: The export warning identifies the affected field, but it does not explain how to correct it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed improvement
+      description: Describe the change and include a concrete example when possible.
+    validations:
+      required: true
+
+  - type: textarea
+    id: benefit
+    attributes:
+      label: Benefit
+      description: Who would benefit, and how would this improve their workflow?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Note any workarounds or other approaches you considered.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add mockups, screenshots, related issues, accessibility considerations, or compatibility constraints.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues for a similar proposal.
+          required: true
+        - label: This proposal improves existing behavior rather than introducing an entirely new function.
+          required: true

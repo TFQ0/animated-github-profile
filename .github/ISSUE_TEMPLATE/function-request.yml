@@ -1,0 +1,59 @@
+name: Function request
+description: Propose a new capability or workflow for the Studio.
+title: "[Function]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the user need first, then the function that could address it. Please keep proposals consistent with the Studio's privacy and SVG-safety boundaries.
+
+  - type: textarea
+    id: need
+    attributes:
+      label: User need
+      description: What BUG or workflow would this new function address?
+      placeholder: As a profile author, I want to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: function
+    attributes:
+      label: Proposed function
+      description: Explain how it should work from a user's perspective.
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Example
+      description: Show a sample input/output, user flow, or acceptance criteria.
+      placeholder: |
+        Given...
+        When...
+        Then...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe current workarounds or other possible solutions.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add mockups, links to related issues, accessibility needs, security considerations, or compatibility constraints.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues for the same or a similar request.
+          required: true
+        - label: The request does not require arbitrary CSS, SVG markup, SVG paths, scripts, or remote fonts.
+          required: true
